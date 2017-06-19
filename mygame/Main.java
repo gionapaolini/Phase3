@@ -447,15 +447,19 @@ public class Main extends SimpleApplication {
     
     
      public void attachBaaaalls(){
+         System.out.println("Vertex count: "+graph.getVerticesList().size());
          Vertex main = graph.getVerticesList().get((int)(Math.random()*graph.getVerticesList().size()));
-         Sphere s = new Sphere(5,5,0.1f);
+         Sphere s = new Sphere(5,5,0.5f);
          Geometry mainS = new Geometry("Main", s);
+         mainS.setLocalTranslation(main.getPosition());
          mainS.setMaterial(blue);
          rootNode.attachChild(mainS);
          for(Vertex v: main.getNeighbours()){
               Geometry n = new Geometry("n", s);
               n.setMaterial(red);
-              rootNode.attachChild(mainS);
+              n.setLocalTranslation(v.getPosition());
+
+              rootNode.attachChild(n);
          }
      }
 
