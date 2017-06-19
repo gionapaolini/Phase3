@@ -47,7 +47,7 @@ public class Main extends SimpleApplication {
     //Setting
     int n_agents = 5;
     boolean onPlanet = true; 
-    boolean planetVisible = false;
+    boolean planetVisible = true;
     boolean meshVisible = true;
     boolean FOVvisible = true;
     
@@ -205,7 +205,7 @@ public class Main extends SimpleApplication {
         
         if(!meshVisible)
             return;
-        planetSphere = new Sphere(25, 25, settings.getRadius()+1.4f);
+        planetSphere = new Sphere(35, 35, settings.getRadius()+1.4f);
         Geometry navMesh = new Geometry("navMesh", planetSphere);
         navMesh.setMaterial(matWireframe);
         planet.setNavMesh(navMesh);
@@ -462,11 +462,29 @@ public class Main extends SimpleApplication {
               rootNode.attachChild(n);
          }
      }
+     
+     public void markMountainFoot(){
+        
+         Sphere s = new Sphere(5,5,0.5f);
+         
+         for(Vertex v: graph.getVerticesList()){
+             if(v.isUnderMountain()){
+                 Geometry n = new Geometry("n", s);
+                 n.setMaterial(red);
+                 n.setLocalTranslation(v.getPosition());
+
+                 rootNode.attachChild(n);
+                 
+             }
+              
+         }
+     }
 
     private void initializeGraph() {
         
         graph = new Graph(planet.getNavMesh().getMesh());
-        attachBaaaalls();
+        graph.markSafeTriangles(graph.getVerticesList(), settings.getRadius());
+        markMountainFoot();
         
     }
 

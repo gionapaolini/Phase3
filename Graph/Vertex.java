@@ -21,13 +21,23 @@ public class Vertex {
     float h;
     float f;
     float distanceFromOrigin;
+    boolean underMountain;
     
     public Vertex(Vector3f pos){
         position = pos;
         distanceFromOrigin = position.subtract(new Vector3f(0,0,0)).length();
         neighbours = new ArrayList<>();
+        underMountain = false;
     }
 
+    public boolean isUnderMountain() {
+        return underMountain;
+    }
+
+    public void setUnderMountain(boolean underMountain) {
+        this.underMountain = underMountain;
+    }
+    
     public Vector3f getPosition() {
         return position;
     }

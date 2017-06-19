@@ -5,14 +5,9 @@
  */
 package Graph;
 
-import com.jme3.collision.CollisionResults;
-import com.jme3.math.Ray;
 import com.jme3.math.Triangle;
-import com.jme3.math.Vector3f;
 import com.jme3.scene.Mesh;
-import com.jme3.scene.Node;
-import com.jme3.scene.VertexBuffer;
-import java.nio.FloatBuffer;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,6 +21,20 @@ public class Graph {
     public Graph(Mesh m){
         vertices = new ArrayList<>();
         makeGraph(m);
+    }
+    
+    public void markSafeTriangles(ArrayList<Vertex> vertices, float radius){
+    
+        for(Vertex v: vertices){
+            for(Vertex v2: v.getNeighbours()){ 
+                if(v2.isUnderMountain())
+                    continue;
+                if(v.getDistanceFromOrigin()-v2.getDistanceFromOrigin() >= 1.5f){
+                    v2.setUnderMountain(true);
+                }
+            }
+        }
+         
     }
     
   
