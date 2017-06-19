@@ -1,5 +1,7 @@
 package mygame;
 
+import Graph.Graph;
+import Graph.Vertex;
 import Logic.Agent;
 import Logic.Planet;
 import Logic.Settings;
@@ -41,6 +43,7 @@ public class Main extends SimpleApplication {
     Material red, blue, green,matWireframe, mat;
     Settings settings;
     Node fovs;
+    Graph graph;
     //Setting
     int n_agents = 5;
     boolean onPlanet = true; 
@@ -69,6 +72,7 @@ public class Main extends SimpleApplication {
             initializePlanet();
         else
             initializeTerrain();
+        initializeGraph();
         initializeAgents();
         
         if(FOVvisible){
@@ -158,7 +162,25 @@ public class Main extends SimpleApplication {
     private void moveAgents(float ftp){
         for(Agent wanderer: agents){
             
+            
+           Vector3f currentPosition = wanderer.getPosition();
+           Vector3f center = planet.getPlanet().getWorldTranslation(); 
+           double distance = currentPosition.subtract(center).length();
+           double difference  =  planet.getSettings().getRadius() +2 - distance;
+           
+           float maxVel = 10;
+           maxVel +=difference*2;
+           maxVel =  Math.max(maxVel, 1);
+
+           wanderer.setMaxVelocity(maxVel);
+            
+            
             wanderer.applyForce(wanderer.wanderForce());
+            
+            
+            
+            
+            
             wanderer.move(ftp, true, planet.getPlanet());
         }
     }
@@ -183,7 +205,7 @@ public class Main extends SimpleApplication {
         
         if(!meshVisible)
             return;
-        planetSphere = new Sphere(150, 150, settings.getRadius()+1.4f);
+        planetSphere = new Sphere(25, 25, settings.getRadius()+1.4f);
         Geometry navMesh = new Geometry("navMesh", planetSphere);
         navMesh.setMaterial(matWireframe);
         planet.setNavMesh(navMesh);
@@ -274,7 +296,6 @@ public class Main extends SimpleApplication {
         node.attachChild(planet.getPlanet());
         node.attachChild(planet.getNavMesh());
         for( int i = 0; i < count; i++ ) {
-            System.out.println(i+" out of "+count);
             v.x = sourcePos.get();
             v.y = sourcePos.get();
             v.z = sourcePos.get();
@@ -423,5 +444,26 @@ public class Main extends SimpleApplication {
         
          
      }
+    
+    
+     public void attachBaaaalls(){
+         Vertex main = graph.getVerticesList().get((int)(Math.random()*graph.getVerticesList().size()));
+         Sphere s = new Sphere(5,5,0.1f);
+         Geometry mainS = new Geometry("Main", s);
+         mainS.setMaterial(blue);
+         rootNode.attachChild(mainS);
+         for(Vertex v: main.getNeighbours()){
+              Geometry n = new Geometry("n", s);
+              n.setMaterial(red);
+              rootNode.attachChild(mainS);
+         }
+     }
+
+    private void initializeGraph() {
+        
+        graph = new Graph(planet.getNavMesh().getMesh());
+        attachBaaaalls();
+        
+    }
 
 }

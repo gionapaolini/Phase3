@@ -22,10 +22,10 @@ public class Settings {
        radius = 50;  //10 to 50 
        heightmapwidth = 600; //300 to 800
        iterations = 25000; // 15000 to 50000
-       numIslands = 20;   //1 to 35
+       numIslands = 35;   //1 to 35
        seed = 19380400;   // 100000 to 40000000
        islandRadius=90;  // 20 to 90
-       displacement = .70f;  // 0 to 1 maybe -1
+       displacement = 1f;  // 0 to 1 maybe -1
        smoothing = .3f;     // 0 to 1
        amplitude = 10.0f;   // 1 to 25
        x_scale = 100.0f;    // 1 to 100
