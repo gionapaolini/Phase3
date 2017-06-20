@@ -46,6 +46,7 @@ public class Main extends SimpleApplication {
     Settings settings;
     Node fovs;
     Graph graph;
+
     //Setting
     int n_pursuers = 1;
     int n_evaders = 10;
@@ -53,9 +54,11 @@ public class Main extends SimpleApplication {
     boolean onPlanet = true; 
     boolean planetVisible = true;
     boolean meshVisible = true;
-    boolean FOVvisible = true;
-    boolean catchingActive = true;
+    boolean FOVvisible = false;
+    boolean catchingActive = false;
     boolean showLines = false;
+    boolean initializeGraph = false;
+    boolean useAgents = false;
     
     
     public static void main(String[] args) {
@@ -77,8 +80,10 @@ public class Main extends SimpleApplication {
             initializePlanet();
         else
             initializeTerrain();
-        initializeGraph();
-        initializeAgents();
+        if(initializeGraph)
+            initializeGraph();
+        if(useAgents)
+            initializeAgents();
         
         if(FOVvisible){
             fovs = new Node();
@@ -91,7 +96,8 @@ public class Main extends SimpleApplication {
     
     @Override
     public void simpleUpdate(float ftp){
-       moveAgents(ftp);
+       if(useAgents)
+           moveAgents(ftp);
        if(catchingActive)
            checkDeaths();
        if(!FOVvisible)
@@ -197,22 +203,8 @@ public class Main extends SimpleApplication {
     private void moveAgents(float ftp){
         for(Agent wanderer: pursuers){
             
-            
-           Vector3f currentPosition = wanderer.getPosition();
-           Vector3f center = planet.getPlanet().getWorldTranslation(); 
-           double distance = currentPosition.subtract(center).length();
-           double difference  =  planet.getSettings().getRadius() +2 - distance;
+           wanderer.move(ftp, onPlanet, planet);
            
-           float maxVel = 10;
-           maxVel +=difference*2;
-           maxVel =  Math.max(maxVel, 1);
-
-           wanderer.setMaxVelocity(maxVel);
-            
-            
-            wanderer.applyForce(wanderer.wanderForce());
-      
-            wanderer.move(ftp, true, planet.getPlanet());
         }
         for(Agent wanderer: evaders){
             
@@ -231,7 +223,7 @@ public class Main extends SimpleApplication {
             
             wanderer.applyForce(wanderer.wanderForce());
       
-            wanderer.move(ftp, true, planet.getPlanet());
+            wanderer.move(ftp, true, planet);
         }
     }
 
@@ -259,6 +251,7 @@ public class Main extends SimpleApplication {
         Geometry navMesh = new Geometry("navMesh", planetSphere);
         navMesh.setMaterial(matWireframe);
         planet.setNavMesh(navMesh);
+
         updateMesh();
     }
     
@@ -365,7 +358,16 @@ public class Main extends SimpleApplication {
                 float distance;
                 do{
                  distance = res.getCollision(size).getDistance();
-                 System.out.println(distance);
+                 
+                 if(distance>200){
+                     System.out.println("The distance is "+distance);
+                     System.out.println("The origin is "+origin);
+                     System.out.println("The vector subtracted is "+v.subtract(origin));
+                     System.out.println("The vector normalized is "+v.subtract(origin).normalize());
+                   
+                 }
+               
+                
                  Vector3f realP = res.getCollision(size).getContactPoint();
                  v.x = realP.x;
                  v.y = realP.y;

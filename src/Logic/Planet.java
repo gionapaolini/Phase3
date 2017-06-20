@@ -26,6 +26,7 @@ public class Planet {
     Geometry planet;
     Geometry navMesh;
     Settings settings;    
+    float radius;
     
     public Planet(Settings setting){
         settings = setting;
@@ -33,7 +34,16 @@ public class Planet {
         PlanetMeshGen planetMeshGen = new PlanetMeshGen();
         planetMeshGen.generateHeightmap(setting);
         planet.setMesh(planetMeshGen.generateMesh(setting));
+        radius = setting.getRadius();
 
+    }
+
+    public float getRadius() {
+        return radius;
+    }
+
+    public void setRadius(float radius) {
+        this.radius = radius;
     }
     
  

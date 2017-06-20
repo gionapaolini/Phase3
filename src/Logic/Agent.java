@@ -18,6 +18,7 @@ import com.jme3.scene.Geometry;
 public class Agent {
     
     int type; //0 pursuer, 1 evader
+    int typeAlgorithm; //0 wandering, 1 patrolling, 2 pursuing
     protected Vector3f position;
     protected Vector3f velocity;
     protected Vector3f currentNormal;
@@ -30,6 +31,7 @@ public class Agent {
     protected boolean canMove;
 
     Vector3f wanderTarget;
+    Vector3f patrollingTarget;
     Geometry body;
     
     public Agent(int i){
@@ -40,19 +42,34 @@ public class Agent {
         type = i;
         canMove = true;
     }
-    public void move(float ftp, boolean isPlanet, Geometry planet){
+    public void move(float ftp, boolean isPlanet, Planet planet){
+       
         if(!canMove)
             return;
+      
+           double distance = position.length();
+           double difference  =  planet.getRadius()+2 - distance;
+           
+           float maxVel = 10;
+           maxVel +=difference*2;
+           maxVel =  Math.max(maxVel, 1);
+
+           setMaxVelocity(maxVel);
+            
+            
+           applyForce(wanderForce());
+      
+           
         velocity = truncate(velocity);
         position = position.add(velocity.mult(ftp));
         body.setLocalTranslation(position);
         if(!isPlanet)
             return;
        
-        Ray r = new Ray(planet.getLocalTranslation(),position.subtract(planet.getLocalTranslation()).normalize());
+        Ray r = new Ray(planet.getPlanet().getLocalTranslation(),position.subtract(planet.getPlanet().getLocalTranslation()).normalize());
       
         CollisionResults results = new CollisionResults();
-        planet.collideWith(r, results);
+        planet.getPlanet().collideWith(r, results);
         if(results.size()<=0)
             return;
         
@@ -62,6 +79,10 @@ public class Agent {
         reposition(contactPoint, currentNormal);
         
         
+    }
+    
+    public void wanderAlgorithm(){
+    
     }
     
     public Vector3f seekForce(Vector3f target){
@@ -93,6 +114,24 @@ public class Agent {
         // Set the steering based on this
         return desired_velocity.subtract(velocity);
     }
+
+    public int getTypeAlgorithm() {
+        return typeAlgorithm;
+    }
+
+    public void setTypeAlgorithm(int typeAlgorithm) {
+        this.typeAlgorithm = typeAlgorithm;
+    }
+
+    public Vector3f getPatrollingTarget() {
+        return patrollingTarget;
+    }
+
+    public void setPatrollingTarget(Vector3f patrollingTarget) {
+        this.patrollingTarget = patrollingTarget;
+    }
+    
+    
     
     public Vector3f wanderForce(){
         Vector3f circleCenter = velocity.clone();

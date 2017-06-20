@@ -18,11 +18,9 @@ public class Vertex {
     List<Vertex> neighbours;
     List<Integer> indicesNeighbours;
     Vector3f position;
-    float g;
-    float h;
-    float f;
     float distanceFromOrigin;
     boolean underMountain;
+    int time;
     
     public Vertex(Vector3f pos){
         position = pos;
@@ -53,23 +51,16 @@ public class Vertex {
         return neighbours;
     }
 
-    public float getG() {
-        return g;
-    }
-
-    public float getH() {
-        return h;
-    }
-
-    public float getF() {
-        return f;
-    }
-
     public float getDistanceFromOrigin() {
         return distanceFromOrigin;
     }
     
-    
+    public void resetTime(){
+        time = 0;
+        for(Vertex v: neighbours){
+            v.resetTime();
+        }
+    }
     
     
     
