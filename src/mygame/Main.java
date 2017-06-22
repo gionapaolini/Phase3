@@ -60,15 +60,18 @@ public class Main extends SimpleApplication {
     
     Vector3f[] randomPosition;
     float[] visibilityRatio;
+    int[] timePosition;
+    boolean[] chosenPositionPursuer;
+    boolean[] chosenPositionEvaders;
     
     
     boolean end =  false;
     //Setting
-    int n_pursuers = 6;
+    int n_pursuers = 3;
     int n_evaders = 3;
     int numTriangle = 20;
     
-    int pursuerType = 0;
+    int pursuerType = 3;
     int evaderType = 3;
     
     boolean onPlanet = true; 
@@ -79,10 +82,15 @@ public class Main extends SimpleApplication {
     boolean showLines = true;
     boolean initializeGraph = false;
     boolean useAgents = true;
-    boolean displayTime = false;
+    boolean displayTime = true;
     boolean displaySafeTriangles = false;
     boolean initializeRandomLocations = true;
     boolean readFile = true;
+    boolean usePatrolling = true;
+    private int NUM_VIS_RAYS = 1000;
+    private int NUM_POS_RAYS = 10000;
+    private boolean useHighestVisibilityPoints = true;
+    
     
     
     public static void main(String[] args) {
@@ -94,9 +102,7 @@ public class Main extends SimpleApplication {
             
         app.start();
     }
-    private int NUM_VIS_RAYS = 1000;
-    private int NUM_POS_RAYS = 10000;
-
+    
     @Override
     public void simpleInitApp() {
         
@@ -109,10 +115,15 @@ public class Main extends SimpleApplication {
         if(initializeGraph){
             initializeGraph();
             initializeTimer();
-
+ 
             if(displayTime)
                 initializeTimesOnGraph();
         }
+        
+        if(usePatrolling) 
+            initializeTimer();
+
+            
         if(useAgents)
             initializeAgents();
         
@@ -137,7 +148,12 @@ public class Main extends SimpleApplication {
             else {
                 initializeRandomPositions();
             }
-           // initializeTimesOnSamples();
+            initializeTimesOnSamples();
+                    
+            chosenPositionPursuer = new boolean[NUM_POS_RAYS];
+            chosenPositionEvaders = new boolean[NUM_POS_RAYS];
+
+           
         }
         
         
@@ -291,7 +307,7 @@ public class Main extends SimpleApplication {
     private void moveAgents(float ftp){
         
         for(Agent wanderer: pursuers){
-            
+           patrollingForcePursuer(wanderer);
            wanderer.move(ftp, onPlanet, planet);
            
         }
@@ -300,8 +316,10 @@ public class Main extends SimpleApplication {
            addForcesToEvader(wanderer);
            wanderer.move(ftp, onPlanet, planet);
            
-           
         }
+        
+        resetChosenPositionEvader();
+        resetChosenPositionPursuer();
 
     }
 
@@ -713,7 +731,8 @@ public class Main extends SimpleApplication {
         BitmapFont newFont = assetManager.loadFont("Interface/Fonts/Default.fnt");
         times = new BitmapText[randomPosition.length];
         for(int i=0;i<times.length;i++){
-            
+            if(visibilityRatio[i]<0.6f)
+                continue;
             times[i] = new BitmapText(newFont, false);
             times[i].setSize(1.5f);
             times[i].setText(""+visibilityRatio[i]);
@@ -730,14 +749,18 @@ public class Main extends SimpleApplication {
     public void updateTimes(){
         
         for(int i=0;i<times.length;i++){
-          
-            times[i].setText(""+graph.getVerticesList().get(i).getTime());
+           if(visibilityRatio[i]<0.6f)
+                continue;
+            times[i].setText(""+timePosition[i]);
            // times[i].setText(""+graph.getVertices().get(i).getTriangle().getCenter());
           
         }
             
     }
     public void initializeTimer(){
+        
+        timePosition = new int[NUM_POS_RAYS];
+        
         timeIncreaser = new Thread() {
             public void run() {
                  while(!end){
@@ -745,7 +768,16 @@ public class Main extends SimpleApplication {
                     
                      try {
                          Thread.sleep(1000);
-                         graph.incrementTime();
+                        //graph.incrementTime();
+                         for(int i=0;i<NUM_POS_RAYS;i++){
+                                     
+                            if(visibilityRatio[i]<0.6f)
+                                continue;
+                            
+                            timePosition[i]++;
+                            
+            
+                         }
 
                      } catch (InterruptedException ex) {
                          Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
@@ -840,6 +872,7 @@ public class Main extends SimpleApplication {
         randomPosition = new Vector3f[NUM_POS_RAYS];
         visibilityRatio = new float[NUM_POS_RAYS];
         
+
         Sphere s = new Sphere(5, 5, 0.2f);
         Vector3f rand;
         
@@ -892,8 +925,8 @@ public class Main extends SimpleApplication {
         int besti = -1;
                 
         for(int i=0;i<visibilityRatio.length;i++){
-                   
-            if(visibilityRatio[i]>0.5f)
+                  
+            if(visibilityRatio[i]>0.5f || chosenPositionEvaders[i])
                 continue;
         
             float diff = p.getPosition().subtract(randomPosition[i]).length()/100;
@@ -916,19 +949,61 @@ public class Main extends SimpleApplication {
                 best = totalVal;
             }
                 
-            //
-            
-           
-          //  p.applyForce(p.seekForce(randomPosition[i]).mult(100/(visibilityRatio[i]*diff)));
-          
-          //float num =  (1-(visibilityRatio[i]));
-         // sum = sum.add(p.seekForce(randomPosition[i]).mult(num));
-         // System.out.println(num);          
+               
         }
-        
+        chosenPositionEvaders[besti] = true;
         p.applyForce(p.seekForce(randomPosition[besti]));
     }
     
+    
+    public void patrollingForcePursuer(Agent p){
+        
+     
+        int highestTime = -1;
+        int besti = -1;
+        
+       
+        
+        for(int i=0;i<visibilityRatio.length;i++){
+                   
+            if(visibilityRatio[i]<0.6f || chosenPositionPursuer[i])
+                continue;
+            
+            if(p.getPosition().subtract(randomPosition[i]).length()<5){
+                timePosition[i] = 0;
+            }
+            
+            
+            if(timePosition[i]>highestTime){
+                highestTime = timePosition[i];
+                besti = i;
+            }
+            
+            
+        }
+       
+       chosenPositionPursuer[besti] = true;
+       p.applyForce(p.seekForce(randomPosition[besti]));
+        
+      
+    }
+    
+    public void resetChosenPositionPursuer(){
+         for(int i=0;i<chosenPositionPursuer.length;i++){
+                   
+           chosenPositionPursuer[i] = false;
+            
+        }
+    }
+    
+    public void resetChosenPositionEvader(){
+         for(int i=0;i<chosenPositionEvaders.length;i++){
+                   
+           chosenPositionEvaders[i] = false;
+            
+            
+        }
+    }
     
     
     
