@@ -7,6 +7,8 @@ import Logic.Planet;
 import Logic.Settings;
 import com.jme3.app.SimpleApplication;
 import com.jme3.collision.CollisionResults;
+import com.jme3.font.BitmapFont;
+import com.jme3.font.BitmapText;
 import com.jme3.light.DirectionalLight;
 import com.jme3.light.Light;
 import com.jme3.material.Material;
@@ -20,6 +22,7 @@ import com.jme3.scene.Mesh;
 import com.jme3.scene.Node;
 import com.jme3.scene.VertexBuffer;
 import com.jme3.scene.VertexBuffer.Type;
+import com.jme3.scene.control.BillboardControl;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Line;
 import com.jme3.scene.shape.Sphere;
@@ -28,6 +31,8 @@ import com.jme3.util.BufferUtils;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * This is the Main Class of your Game. You should only do initialization here.
@@ -36,30 +41,37 @@ import java.util.List;
  */
 public class Main extends SimpleApplication {
 
-    List<Agent> pursuers;
-    List<Agent> evaders;
-
+    ArrayList<Agent> pursuers;
+    ArrayList<Agent> evaders;
+    Thread timeIncreaser;
     Planet planet;
     Sphere sphere, planetSphere;
     Box cube;
-    Material red, blue, green,matWireframe, mat;
+    Material red, blue, green, white, matWireframe, mat;
     Settings settings;
-    Node fovs;
+    Node fovs, safeTriangles;
     Graph graph;
-
+    Node[] bb;
+    BitmapText[] times;
+    boolean end =  false;
     //Setting
     int n_pursuers = 1;
     int n_evaders = 10;
-    int numTriangle = 25;
+    int numTriangle = 50;
+    
+    int pursuerType = 0;
+    int evaderType = 2;
+    
     boolean onPlanet = true; 
     boolean planetVisible = true;
     boolean meshVisible = true;
     boolean FOVvisible = false;
     boolean catchingActive = false;
     boolean showLines = false;
-    boolean initializeGraph = false;
-    boolean useAgents = false;
-    
+    boolean initializeGraph = true;
+    boolean useAgents = true;
+    boolean displayTime = false;
+    boolean displaySafeTriangles = true;
     
     public static void main(String[] args) {
         Main app = new Main();
@@ -80,15 +92,27 @@ public class Main extends SimpleApplication {
             initializePlanet();
         else
             initializeTerrain();
-        if(initializeGraph)
+        if(initializeGraph){
             initializeGraph();
+            initializeTimer();
+
+            if(displayTime)
+                initializeTimesOnGraph();
+        }
         if(useAgents)
             initializeAgents();
+        
+        if(displaySafeTriangles){
+            safeTriangles =  new Node();
+            rootNode.attachChild(safeTriangles);
+        }
+      
         
         if(FOVvisible){
             fovs = new Node();
             rootNode.attachChild(fovs);
         }
+        
         
 
         
@@ -98,12 +122,21 @@ public class Main extends SimpleApplication {
     public void simpleUpdate(float ftp){
        if(useAgents)
            moveAgents(ftp);
+        
+       System.out.println("Here 2");
+
+       
        if(catchingActive)
            checkDeaths();
-       if(!FOVvisible)
-           return;
+       if(displayTime)
+           updateTimes();
        
-       displayFOV();
+       if(displaySafeTriangles){
+           calculateSafeTriangles();
+           displaySafeTriangles();
+       }
+       if(FOVvisible)
+           displayFOV();
     }
 
     private void initializeAppSetting() {
@@ -128,6 +161,8 @@ public class Main extends SimpleApplication {
         blue.setColor("Color", ColorRGBA.Blue);
         green = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         green.setColor("Color", ColorRGBA.Green);
+        white = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+        white.setColor("Color", ColorRGBA.White);
         
         matWireframe = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         matWireframe.setColor("Color", ColorRGBA.Green);
@@ -148,82 +183,89 @@ public class Main extends SimpleApplication {
         evaders = new ArrayList();
 
         for(int i=0;i<n_pursuers;i++){
-            Agent wanderer = new Agent(0);
-            wanderer.setBody(new Geometry("Sphere", sphere));
-            wanderer.getBody().setMaterial(red);
+            Agent agent = new Agent(0,pursuerType, evaders);
             
-            float r1 = (float) (Math.random()*100);
-            if(Math.random()<0.5)
-                r1-=200;
-            else
-                r1+=200;
-            float r2 = (float) (Math.random()*100);
-            if(Math.random()<0.5)
-                r2-=200;
-            else
-                r2+=200;
-            float r3 = (float) (Math.random()*100);
-            if(Math.random()<0.5)
-                r3-=200;
-            else
-                r3+=200;
+             agent.setBody(new Geometry("Sphere", sphere));
+             agent.getBody().setMaterial(red);
             
-            wanderer.setPosition(new Vector3f(r1,r2,r3));
-            rootNode.attachChild(wanderer.getBody());
-            pursuers.add(wanderer);
+            if(agent.getTypeAlgorithm()!=1 ){
+               
+
+                float r1 = (float) (Math.random()*100);
+                if(Math.random()<0.5)
+                    r1-=200;
+                else
+                    r1+=200;
+                float r2 = (float) (Math.random()*100);
+                if(Math.random()<0.5)
+                    r2-=200;
+                else
+                    r2+=200;
+                float r3 = (float) (Math.random()*100);
+                if(Math.random()<0.5)
+                    r3-=200;
+                else
+                    r3+=200;
+
+                agent.setPosition(new Vector3f(r1,r2,r3));
+            }else{
+                Vertex v = graph.getVerticesList().get((int)(Math.random()*graph.getVerticesList().size()));
+                float l = v.getPosition().length();
+                Vector3f pos = v.getPosition().normalize().mult(l+5);
+
+                agent.setCurrentVertex(v);
+                agent.setPosition(pos);
+            }
+            rootNode.attachChild(agent.getBody());
+            pursuers.add(agent);
         }
         
          for(int i=0;i<n_evaders;i++){
-            Agent wanderer = new Agent(1);
-            wanderer.setBody(new Geometry("Sphere", sphere));
-            wanderer.getBody().setMaterial(green);
+            Agent agent = new Agent(1,evaderType, pursuers);
+                        
+             agent.setBody(new Geometry("Sphere", sphere));
+             agent.getBody().setMaterial(white);
             
-            float r1 = (float) (Math.random()*100);
-            if(Math.random()<0.5)
-                r1-=200;
-            else
-                r1+=200;
-            float r2 = (float) (Math.random()*100);
-            if(Math.random()<0.5)
-                r2-=200;
-            else
-                r2+=200;
-            float r3 = (float) (Math.random()*100);
-            if(Math.random()<0.5)
-                r3-=200;
-            else
-                r3+=200;
-            
-            wanderer.setPosition(new Vector3f(r1,r2,r3));
-            rootNode.attachChild(wanderer.getBody());
-            evaders.add(wanderer);
+            if(agent.getTypeAlgorithm()!=1 ){
+               
+
+                float r1 = (float) (Math.random()*100);
+                if(Math.random()<0.5)
+                    r1-=200;
+                else
+                    r1+=200;
+                float r2 = (float) (Math.random()*100);
+                if(Math.random()<0.5)
+                    r2-=200;
+                else
+                    r2+=200;
+                float r3 = (float) (Math.random()*100);
+                if(Math.random()<0.5)
+                    r3-=200;
+                else
+                    r3+=200;
+
+                agent.setPosition(new Vector3f(r1,r2,r3));
+            }else{
+                Vertex v = graph.getVerticesList().get((int)(Math.random()*graph.getVerticesList().size()));
+                agent.setCurrentVertex(v);
+                agent.setPosition(v.getPosition());
+            }
+            rootNode.attachChild(agent.getBody());
+            evaders.add(agent);
         }
     }
     
     private void moveAgents(float ftp){
+        System.out.println("Here 1");
         for(Agent wanderer: pursuers){
             
            wanderer.move(ftp, onPlanet, planet);
            
         }
         for(Agent wanderer: evaders){
-            
-            
-           Vector3f currentPosition = wanderer.getPosition();
-           Vector3f center = planet.getPlanet().getWorldTranslation(); 
-           double distance = currentPosition.subtract(center).length();
-           double difference  =  planet.getSettings().getRadius() +2 - distance;
-           
-           float maxVel = 10;
-           maxVel +=difference*2;
-           maxVel =  Math.max(maxVel, 1);
-
-           wanderer.setMaxVelocity(maxVel);
-            
-            
-            wanderer.applyForce(wanderer.wanderForce());
-      
-            wanderer.move(ftp, true, planet);
+                
+            wanderer.move(ftp, onPlanet, planet);
         }
     }
 
@@ -534,7 +576,7 @@ public class Main extends SimpleApplication {
         
         graph = new Graph(planet.getNavMesh().getMesh());
         graph.markSafeTriangles(graph.getVerticesList(), settings.getRadius());
-        markMountainFoot();
+        //markMountainFoot();
         
     }
     
@@ -572,6 +614,9 @@ public class Main extends SimpleApplication {
         
         
         for(Agent pursuer: pursuers){
+            Vector3f[] pyramid = buildPyramid(pursuer.getPosition(),pursuer.getVelocity(),pursuer.getCurrentNormal());
+            pursuer.setPyramidSight(pyramid);
+            
             for(Agent evader: evaders){
                 
                 if(!evader.isCanMove())
@@ -582,8 +627,7 @@ public class Main extends SimpleApplication {
                 planet.getPlanet().collideWith(r, res);
                 if(res.size()<=0){
                     
-                    Vector3f[] pyramid = buildPyramid(pursuer.getPosition(),pursuer.getVelocity(),pursuer.getCurrentNormal());
-
+                    
                     if(isInSight(pyramid, pursuer.getPosition(),evader.getPosition())){
                         evader.getBody().setMaterial(blue);
                         evader.setCanMove(false);
@@ -604,5 +648,112 @@ public class Main extends SimpleApplication {
     }
 
     
+    public void initializeTimesOnGraph(){
+        bb = new Node[graph.getVerticesList().size()];
+        BillboardControl[] control = new BillboardControl[graph.getVerticesList().size()];
+     
+         
+        BitmapFont newFont = assetManager.loadFont("Interface/Fonts/Default.fnt");
+        times = new BitmapText[graph.getVerticesList().size()];
+        for(int i=0;i<times.length;i++){
+            
+            times[i] = new BitmapText(newFont, false);
+            times[i].setSize(1.5f);
+            times[i].setText("0");
+            times[i].setLocalTranslation(new Vector3f(0,0,0));
+            control[i]=new BillboardControl();
+            bb[i] = new Node("node"+i);
+            bb[i].setLocalTranslation(graph.getVerticesList().get(i).getPosition());
+            bb[i].addControl(control[i]);
+            bb[i].attachChild(times[i]);
+            rootNode.attachChild(bb[i]);
+        }
+    }
+    
+    public void updateTimes(){
+        
+        for(int i=0;i<times.length;i++){
+          
+            times[i].setText(""+graph.getVerticesList().get(i).getTime());
+           // times[i].setText(""+graph.getVertices().get(i).getTriangle().getCenter());
+          
+        }
+            
+    }
+    public void initializeTimer(){
+        timeIncreaser = new Thread() {
+            public void run() {
+                 while(!end){
+
+                    
+                     try {
+                         Thread.sleep(1000);
+                         graph.incrementTime();
+
+                     } catch (InterruptedException ex) {
+                         Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+                     }
+                    
+
+                 }
+
+            }  
+            public void setEnd(){
+                end = true;
+            }
+        };
+        timeIncreaser.start();
+    }
+    
+    
+    @Override
+
+    public void destroy(){
+
+        super.destroy();
+
+        end=true;
+
+    }
+    
+    public void calculateSafeTriangles(){
+        for(Vertex v: graph.getVerticesList()){
+                v.setSafe(true);
+        }
+        for(Agent agent: pursuers){
+            for(Vertex v: graph.getVerticesList()){
+                
+                
+                Ray r = new Ray(agent.getPosition(),v.getPosition().subtract(agent.getPosition()).normalize());
+                CollisionResults res = new CollisionResults();
+                planet.getPlanet().collideWith(r, res);
+                if(res.size()<=0){
+                    Vector3f[] pyramid;
+                    if(agent.getPyramidSight() == null)
+                         pyramid = buildPyramid(agent.getPosition(),agent.getVelocity(),agent.getCurrentNormal());
+                    else
+                        pyramid = agent.getPyramidSight();
+
+                    if(v.isSafe() && isInSight(pyramid, agent.getPosition(),v.getPosition())){
+                        v.setSafe(false);
+                    }
+                }
+            }
+        }
+    }
+    
+    public void displaySafeTriangles(){
+        safeTriangles.detachAllChildren();
+        Sphere s = new Sphere(5,5,0.5f);
+
+        for(Vertex v: graph.getVerticesList()){
+               if(!v.isSafe()){
+                 Geometry n = new Geometry("n", s);
+                 n.setMaterial(green);
+                 n.setLocalTranslation(v.getPosition());
+                 safeTriangles.attachChild(n);
+               }
+        }
+    }
    
 }

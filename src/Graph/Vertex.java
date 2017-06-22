@@ -15,11 +15,12 @@ import java.util.List;
  */
 public class Vertex {
     
-    List<Vertex> neighbours;
-    List<Integer> indicesNeighbours;
+    ArrayList<Vertex> neighbours;
+    ArrayList<Integer> indicesNeighbours;
     Vector3f position;
     float distanceFromOrigin;
     boolean underMountain;
+    boolean safe;
     int time;
     
     public Vertex(Vector3f pos){
@@ -28,6 +29,7 @@ public class Vertex {
         neighbours = new ArrayList<>();
         indicesNeighbours = new ArrayList<>();
         underMountain = false;
+        safe = true;
     }
 
     public boolean isUnderMountain() {
@@ -37,6 +39,25 @@ public class Vertex {
     public void setUnderMountain(boolean underMountain) {
         this.underMountain = underMountain;
     }
+
+    public int getTime() {
+        return time;
+    }
+
+    public void setTime(int time) {
+        this.time = time;
+    }
+
+    public boolean isSafe() {
+        return safe;
+    }
+
+    public void setSafe(boolean safe) {
+        this.safe = safe;
+    }
+    
+    
+    
     
     public Vector3f getPosition() {
         return position;
@@ -47,7 +68,7 @@ public class Vertex {
         indicesNeighbours.add(i);
     }
 
-    public List<Vertex> getNeighbours() {
+    public ArrayList<Vertex> getNeighbours() {
         return neighbours;
     }
 
@@ -58,10 +79,13 @@ public class Vertex {
     public void resetTime(){
         time = 0;
         for(Vertex v: neighbours){
-            v.resetTime();
+            v.setTime(0);
         }
     }
     
+    public void increaseTime(){
+        time++;
+    }
     
     
 }

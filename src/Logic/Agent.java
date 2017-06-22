@@ -5,11 +5,13 @@
  */
 package Logic;
 
+import Graph.Vertex;
 import com.jme3.collision.CollisionResults;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Ray;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Geometry;
+import java.util.ArrayList;
 
 /**
  *
@@ -29,35 +31,101 @@ public class Agent {
     protected final int CIRCLE_RADIUS = 5;
     protected final int ANGLE_CHANGE = 1;
     protected boolean canMove;
-
+    protected ArrayList<Agent> enemyList;
     Vector3f wanderTarget;
-    Vector3f patrollingTarget;
+    Vertex currentVertex;
     Geometry body;
+    Vector3f[] pyramidSight;
     
-    public Agent(int i){
+    
+    public Agent(int i, int typeOfAlgorithm, ArrayList<Agent> enemyList){
         position = new Vector3f();
         velocity = new Vector3f(1,0,1);
         wanderAngle = 40;
         maxVelocity = 10;
         type = i;
+        typeAlgorithm = typeOfAlgorithm;
         canMove = true;
+        this.enemyList = enemyList;
     }
     public void move(float ftp, boolean isPlanet, Planet planet){
        
         if(!canMove)
             return;
       
-           double distance = position.length();
-           double difference  =  planet.getRadius()+2 - distance;
-           
-           float maxVel = 10;
-           maxVel +=difference*2;
-           maxVel =  Math.max(maxVel, 1);
+        double distance = position.length();
+        double difference  =  planet.getRadius()+2 - distance;
 
-           setMaxVelocity(maxVel);
+        float maxVel = 10;
+        maxVel +=difference*2;
+        maxVel =  Math.max(maxVel, 1);
+
+        setMaxVelocity(maxVel);
+            
+        if(typeAlgorithm == 0)
+            applyForce(wanderForce());
+        else if(typeAlgorithm==1){
+            if(type==0){
+                if(currentVertex.getPosition().subtract(position).length()<5){
+                    Vertex bestVertex = null;
+                    int bestTime = -1;
+
+                    ArrayList<Vertex> neighbours = currentVertex.getNeighbours();
+                    for(Vertex v: neighbours){
+                        ArrayList<Vertex> neighboursOfNeighbours = v.getNeighbours();
+                        for(Vertex v1: neighboursOfNeighbours){
+                            if(v1.getTime()>bestTime){
+                                bestTime = v1.getTime();
+                                bestVertex = v1;
+                            }
+                        }
+
+                    }
+                    currentVertex = bestVertex;
+                    currentVertex.resetTime();
+                }
+            }else{
+                if(currentVertex.getPosition().subtract(position).length()<5){
+                    Vertex bestVertex = null;
+                    int bestTime = 10000;
+
+                    ArrayList<Vertex> neighbours = currentVertex.getNeighbours();
+                    for(Vertex v: neighbours){
+                        ArrayList<Vertex> neighboursOfNeighbours = v.getNeighbours();
+                        for(Vertex v1: neighboursOfNeighbours){
+                            if(v1.getTime()<bestTime){
+                                bestTime = v1.getTime();
+                                bestVertex = v1;
+                            }
+                        }
+
+                    }
+                    currentVertex = bestVertex;
+                    currentVertex.resetTime();
+                }
+            }
+            applyForce(seekForce(currentVertex.getPosition()));
+           
+
             
             
-           applyForce(wanderForce());
+
+        }else if(typeAlgorithm==2){
+           for(Agent a: enemyList){
+               if(Math.random()>9)
+                   break;
+               System.out.println("Changed");
+               if(type==0)
+                   applyForce(pursueForce(a));
+               else
+                   applyForce(evadeForce(a));
+
+           }
+                
+        }
+        
+        System.out.println("Here 4");
+
       
            
         velocity = truncate(velocity);
@@ -65,6 +133,9 @@ public class Agent {
         body.setLocalTranslation(position);
         if(!isPlanet)
             return;
+        
+        System.out.println("Here 5");
+
        
         Ray r = new Ray(planet.getPlanet().getLocalTranslation(),position.subtract(planet.getPlanet().getLocalTranslation()).normalize());
       
@@ -75,7 +146,7 @@ public class Agent {
         
         Vector3f contactPoint = results.getFarthestCollision().getContactPoint();
         currentNormal = results.getFarthestCollision().getContactNormal();
-        
+        System.out.println("Here +" + currentNormal);
         reposition(contactPoint, currentNormal);
         
         
@@ -123,15 +194,14 @@ public class Agent {
         this.typeAlgorithm = typeAlgorithm;
     }
 
-    public Vector3f getPatrollingTarget() {
-        return patrollingTarget;
+    public Vertex getCurrentVertex() {
+        return currentVertex;
     }
 
-    public void setPatrollingTarget(Vector3f patrollingTarget) {
-        this.patrollingTarget = patrollingTarget;
+    public void setCurrentVertex(Vertex currentVertex) {
+        this.currentVertex = currentVertex;
     }
-    
-    
+
     
     public Vector3f wanderForce(){
         Vector3f circleCenter = velocity.clone();
@@ -275,7 +345,7 @@ public class Agent {
     private void reposition(Vector3f contactPoint, Vector3f normalPoint){
          
         float length = contactPoint.length();
-        Vector3f newLocation = contactPoint.normalize().mult(length+2);
+        Vector3f newLocation = contactPoint.normalize().mult(length+1.2f);
         setPosition(newLocation);
        
         Vector3f rotation = getProjectionOntoPlane(normalPoint,velocity);
@@ -293,5 +363,51 @@ public class Agent {
         return projection;
     }
     
+    
+     public Vector3f pursueForce(Agent target){
+        float t = 3;
+        
+        Vector3f dist = target.getPosition().subtract(position);
+        t = dist.length() / maxVelocity;
+        
+        Vector3f targetPos = target.getPosition();
+        Vector3f targetVel = target.getVelocity();
+        
+        Vector3f futurePos = targetPos.add(targetVel.mult(t));
+        return seekForce(futurePos);
+    }
+    
+    public Vector3f evadeForce(Agent target){
+        float t = 3;
+        
+        Vector3f dist = target.getPosition().subtract(position);
+        t = dist.length() / maxVelocity;
+        
+        Vector3f targetPos = target.getPosition();
+        Vector3f targetVel = target.getVelocity();
+        
+        
+        Vector3f futurePos = targetPos.add(targetVel.mult(t));
+        return fleeForce(futurePos);
+    }
+
+    public ArrayList<Agent> getEnemyList() {
+        return enemyList;
+    }
+
+    public void setEnemyList(ArrayList<Agent> enemyList) {
+        this.enemyList = enemyList;
+    }
+
+    public Vector3f[] getPyramidSight() {
+        return pyramidSight;
+    }
+
+    public void setPyramidSight(Vector3f[] pyramidSight) {
+        this.pyramidSight = pyramidSight;
+    }
+    
+    
+     
     
 }

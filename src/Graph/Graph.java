@@ -124,4 +124,14 @@ public class Graph {
      public ArrayList<Vertex> getVerticesList(){
          return (ArrayList<Vertex>) vertices;
      }
+
+    public void incrementTime() {
+        
+        for(Vertex v: vertices){
+            v.increaseTime();
+        }
+        
+    }
+     
+     
 }
