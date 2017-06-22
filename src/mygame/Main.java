@@ -28,6 +28,10 @@ import com.jme3.scene.shape.Line;
 import com.jme3.scene.shape.Sphere;
 import com.jme3.system.AppSettings;
 import com.jme3.util.BufferUtils;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,25 +57,33 @@ public class Main extends SimpleApplication {
     Graph graph;
     Node[] bb;
     BitmapText[] times;
+    
+    Vector3f[] randomPosition;
+    float[] visibilityRatio;
+    
+    
     boolean end =  false;
     //Setting
-    int n_pursuers = 1;
-    int n_evaders = 10;
-    int numTriangle = 50;
+    int n_pursuers = 6;
+    int n_evaders = 3;
+    int numTriangle = 20;
     
     int pursuerType = 0;
-    int evaderType = 2;
+    int evaderType = 3;
     
     boolean onPlanet = true; 
     boolean planetVisible = true;
-    boolean meshVisible = true;
+    boolean meshVisible = false;
     boolean FOVvisible = false;
     boolean catchingActive = false;
     boolean showLines = false;
-    boolean initializeGraph = true;
+    boolean initializeGraph = false;
     boolean useAgents = true;
     boolean displayTime = false;
-    boolean displaySafeTriangles = true;
+    boolean displaySafeTriangles = false;
+    boolean initializeRandomLocations = true;
+    boolean readFile = true;
+    
     
     public static void main(String[] args) {
         Main app = new Main();
@@ -82,6 +94,8 @@ public class Main extends SimpleApplication {
             
         app.start();
     }
+    private int NUM_VIS_RAYS = 1000;
+    private int NUM_POS_RAYS = 10000;
 
     @Override
     public void simpleInitApp() {
@@ -107,6 +121,25 @@ public class Main extends SimpleApplication {
             rootNode.attachChild(safeTriangles);
         }
       
+        if(initializeRandomLocations){
+        
+            
+            if(readFile) {
+                try{
+                    ObjectInputStream inputStream = new ObjectInputStream(new FileInputStream("randomPosition"));
+                    randomPosition = (Vector3f[])inputStream.readObject();
+                } catch(Exception e) {}
+                try{
+                    ObjectInputStream inputStream = new ObjectInputStream(new FileInputStream("visibilityRatio"));
+                    visibilityRatio = (float[])inputStream.readObject();
+                } catch(Exception e) {}
+            }
+            else {
+                initializeRandomPositions();
+            }
+           // initializeTimesOnSamples();
+        }
+        
         
         if(FOVvisible){
             fovs = new Node();
@@ -123,7 +156,6 @@ public class Main extends SimpleApplication {
        if(useAgents)
            moveAgents(ftp);
         
-       System.out.println("Here 2");
 
        
        if(catchingActive)
@@ -257,16 +289,21 @@ public class Main extends SimpleApplication {
     }
     
     private void moveAgents(float ftp){
-        System.out.println("Here 1");
+        
         for(Agent wanderer: pursuers){
             
            wanderer.move(ftp, onPlanet, planet);
            
         }
         for(Agent wanderer: evaders){
-                
-            wanderer.move(ftp, onPlanet, planet);
+           
+           addForcesToEvader(wanderer);
+           System.out.println(wanderer.getPosition());
+           wanderer.move(ftp, onPlanet, planet);
+           
+           
         }
+
     }
 
     private void initializePlanet() {
@@ -577,7 +614,6 @@ public class Main extends SimpleApplication {
         graph = new Graph(planet.getNavMesh().getMesh());
         graph.markSafeTriangles(graph.getVerticesList(), settings.getRadius());
         //markMountainFoot();
-        
     }
     
     
@@ -670,6 +706,28 @@ public class Main extends SimpleApplication {
         }
     }
     
+     public void initializeTimesOnSamples(){
+        bb = new Node[randomPosition.length];
+        BillboardControl[] control = new BillboardControl[randomPosition.length];
+     
+         
+        BitmapFont newFont = assetManager.loadFont("Interface/Fonts/Default.fnt");
+        times = new BitmapText[randomPosition.length];
+        for(int i=0;i<times.length;i++){
+            
+            times[i] = new BitmapText(newFont, false);
+            times[i].setSize(1.5f);
+            times[i].setText(""+visibilityRatio[i]);
+            times[i].setLocalTranslation(new Vector3f(0,0,0));
+            control[i]=new BillboardControl();
+            bb[i] = new Node("node"+i);
+            bb[i].setLocalTranslation(randomPosition[i].normalize().mult(randomPosition[i].length()+2));
+            bb[i].addControl(control[i]);
+            bb[i].attachChild(times[i]);
+            rootNode.attachChild(bb[i]);
+        }
+    }
+    
     public void updateTimes(){
         
         for(int i=0;i<times.length;i++){
@@ -755,5 +813,126 @@ public class Main extends SimpleApplication {
                }
         }
     }
+    
+    public float evaluatePositionVisibility(Vector3f position) {
+        Vector3f rand;
+        int count = 0;
+        
+        
+        double time = System.currentTimeMillis();
+                
+        for(int i=0; i < NUM_VIS_RAYS; i++) {
+            rand = new Vector3f((float)Math.random()-0.5f,(float)Math.random()-0.5f,(float)Math.random()-0.5f);
+            //System.out.println(rand);
+            Ray r = new Ray(position,rand);
+            CollisionResults res = new CollisionResults();
+            planet.getPlanet().collideWith(r, res);
+            if(res.size()<=0)
+                count++;
+        }
+        
+        System.out.println(System.currentTimeMillis()-time);
+        
+        return count/(float)NUM_VIS_RAYS;
+    }
+    
+    public void initializeRandomPositions() {
+
+        randomPosition = new Vector3f[NUM_POS_RAYS];
+        visibilityRatio = new float[NUM_POS_RAYS];
+        
+        Sphere s = new Sphere(5, 5, 0.2f);
+        Vector3f rand;
+        
+        for(int i=0; i < NUM_POS_RAYS; i++) {
+            
+           
+            rand = new Vector3f((float)Math.random()-0.5f,(float)Math.random()-0.5f,(float)Math.random()-0.5f);
+            Ray r = new Ray(new Vector3f(0,0,0),rand);
+            CollisionResults res = new CollisionResults();
+            planet.getPlanet().collideWith(r, res);
+                
+            
+            Geometry n = new Geometry("n", s);
+            n.setMaterial(green);
+            
+            Vector3f position = res.getFarthestCollision().getContactPoint();
+         
+            n.setLocalTranslation(position);
+            //rootNode.attachChild(n);
+            
+            visibilityRatio[i] = evaluatePositionVisibility(position.normalize().mult(position.length()+0.5f));
+            randomPosition[i] = position.normalize().mult(position.length()+0.5f);
+            
+            System.out.println(i);
+
+        }
+        try { 
+            String visFilename = "visibilityRatio";
+            ObjectOutputStream outputStream = new ObjectOutputStream(new FileOutputStream(visFilename));
+            outputStream.writeObject(visibilityRatio);
+            
+        } catch(Exception e) {}
+
+        try { 
+            String posFilename = "randomPosition";
+            ObjectOutputStream outputStream = new ObjectOutputStream(new FileOutputStream(posFilename));
+            outputStream.writeObject(randomPosition);
+            
+        } catch(Exception e) {}
+
+        
+    }
+    
+    
+    public void addForcesToEvader(Agent p){
+        Vector3f sum = new Vector3f(0,0,0);
+        double time = System.currentTimeMillis();
+        
+        float best = -1f;
+        int besti = -1;
+                
+        for(int i=0;i<visibilityRatio.length;i++){
+                   
+            if(visibilityRatio[i]>0.5f)
+                continue;
+        
+            float diff = p.getPosition().subtract(randomPosition[i]).length()/100;
+            
+            float closestValue = 100000;
+            for(Agent agent:pursuers){
+               
+                float current = agent.getPosition().subtract(randomPosition[i]).length();
+                if(current<closestValue){
+                    closestValue = current;
+                }
+            }
+            
+            
+            
+            //System.out.println(sumOfDiffPursuer);
+            
+            
+            
+            if( closestValue > best) {
+                besti = i;
+                best = closestValue;
+            }
+                
+            //
+            
+           
+          //  p.applyForce(p.seekForce(randomPosition[i]).mult(100/(visibilityRatio[i]*diff)));
+          
+          //float num =  (1-(visibilityRatio[i]));
+         // sum = sum.add(p.seekForce(randomPosition[i]).mult(num));
+         // System.out.println(num);          
+        }
+        
+        System.out.println(System.currentTimeMillis() - time);
+        p.applyForce(p.seekForce(randomPosition[besti]));
+    }
+    
+    
    
 }

@@ -60,7 +60,7 @@ public class Agent {
         maxVel +=difference*2;
         maxVel =  Math.max(maxVel, 1);
 
-        setMaxVelocity(maxVel);
+        //setMaxVelocity(maxVel);
             
         if(typeAlgorithm == 0)
             applyForce(wanderForce());
@@ -122,7 +122,7 @@ public class Agent {
 
            }
                 
-        }
+        }else if(typeAlgorithm==3)
         
         System.out.println("Here 4");
 
