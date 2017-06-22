@@ -124,7 +124,6 @@ public class Agent {
                 
         }else if(typeAlgorithm==3)
         
-        System.out.println("Here 4");
 
       
            
@@ -134,7 +133,6 @@ public class Agent {
         if(!isPlanet)
             return;
         
-        System.out.println("Here 5");
 
        
         Ray r = new Ray(planet.getPlanet().getLocalTranslation(),position.subtract(planet.getPlanet().getLocalTranslation()).normalize());
@@ -146,7 +144,6 @@ public class Agent {
         
         Vector3f contactPoint = results.getFarthestCollision().getContactPoint();
         currentNormal = results.getFarthestCollision().getContactNormal();
-        System.out.println("Here +" + currentNormal);
         reposition(contactPoint, currentNormal);
         
         

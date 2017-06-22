@@ -75,8 +75,8 @@ public class Main extends SimpleApplication {
     boolean planetVisible = true;
     boolean meshVisible = false;
     boolean FOVvisible = false;
-    boolean catchingActive = false;
-    boolean showLines = false;
+    boolean catchingActive = true;
+    boolean showLines = true;
     boolean initializeGraph = false;
     boolean useAgents = true;
     boolean displayTime = false;
@@ -298,7 +298,6 @@ public class Main extends SimpleApplication {
         for(Agent wanderer: evaders){
            
            addForcesToEvader(wanderer);
-           System.out.println(wanderer.getPosition());
            wanderer.move(ftp, onPlanet, planet);
            
            
@@ -889,7 +888,7 @@ public class Main extends SimpleApplication {
         Vector3f sum = new Vector3f(0,0,0);
         double time = System.currentTimeMillis();
         
-        float best = -1f;
+        float best = 10000;
         int besti = -1;
                 
         for(int i=0;i<visibilityRatio.length;i++){
@@ -908,15 +907,13 @@ public class Main extends SimpleApplication {
                 }
             }
             
+            float totalVal = visibilityRatio[i] + diff - (closestValue/50);
+                      
             
             
-            //System.out.println(sumOfDiffPursuer);
-            
-            
-            
-            if( closestValue > best) {
+            if( totalVal < best) {
                 besti = i;
-                best = closestValue;
+                best = totalVal;
             }
                 
             //
@@ -929,9 +926,10 @@ public class Main extends SimpleApplication {
          // System.out.println(num);          
         }
         
-        System.out.println(System.currentTimeMillis() - time);
         p.applyForce(p.seekForce(randomPosition[besti]));
     }
+    
+    
     
     
    
