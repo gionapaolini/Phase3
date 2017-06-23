@@ -90,8 +90,8 @@ public class AStarAlgorithm {
     //add heuristic here? height/distance?
     public void heuristicEstimate(StarNode x){
        
-        float ratio = ratios[x.getIndex()];
-        float height = x.getPosition().length();
+        float ratio = ratios[x.getIndex()]*50;
+        float height = x.getPosition().length()*2;
         float distance = x.getPosition().subtract(goal.getPosition()).length();
         
         x.setH(ratio+height+distance);
