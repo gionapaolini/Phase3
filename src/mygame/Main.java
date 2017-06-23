@@ -1,5 +1,7 @@
 package mygame;
 
+import AStar.AStarAlgorithm;
+import AStar.StarNode;
 import Graph.Graph;
 import Graph.Vertex;
 import Logic.Agent;
@@ -60,6 +62,7 @@ public class Main extends SimpleApplication {
     
     Vector3f[] randomPosition;
     float[] visibilityRatio;
+    float[] heights;
     int[] timePosition;
     boolean[] chosenPositionPursuer;
     boolean[] chosenPositionEvaders;
@@ -78,11 +81,11 @@ public class Main extends SimpleApplication {
     boolean planetVisible = true;
     boolean meshVisible = false;
     boolean FOVvisible = false;
-    boolean catchingActive = true;
-    boolean showLines = true;
+    boolean catchingActive = false;
+    boolean showLines = false;
     boolean initializeGraph = false;
-    boolean useAgents = true;
-    boolean displayTime = true;
+    boolean useAgents = false;
+    boolean displayTime = false;
     boolean displaySafeTriangles = false;
     boolean initializeRandomLocations = true;
     boolean readFile = true;
@@ -90,7 +93,8 @@ public class Main extends SimpleApplication {
     private int NUM_VIS_RAYS = 1000;
     private int NUM_POS_RAYS = 10000;
     private boolean useHighestVisibilityPoints = true;
-    
+    private boolean[][] edges;
+
     
     
     public static void main(String[] args) {
@@ -152,7 +156,8 @@ public class Main extends SimpleApplication {
                     
             chosenPositionPursuer = new boolean[NUM_POS_RAYS];
             chosenPositionEvaders = new boolean[NUM_POS_RAYS];
-
+            initializeEdges();
+            
            
         }
         
@@ -339,7 +344,9 @@ public class Main extends SimpleApplication {
         
         planet = new Planet(settings);
         planet.getPlanet().setMaterial(mat);
-        rootNode.attachChild(planet.getPlanet());
+        
+        if(planetVisible)
+            rootNode.attachChild(planet.getPlanet());
         
         if(!meshVisible)
             return;
@@ -916,6 +923,25 @@ public class Main extends SimpleApplication {
         
     }
     
+    public void initializeEdges(){
+        edges= new boolean[NUM_POS_RAYS][NUM_POS_RAYS];
+        for(int i=0;i<NUM_POS_RAYS;i++){
+            for(int j=i+1;j<NUM_POS_RAYS;j++){
+
+                if(randomPosition[i].subtract(randomPosition[j]).length()<6){
+                                       
+                    edges[i][j]=true;
+                    edges[j][i]=true;
+
+                }
+                    
+            }
+        }
+      // attachBaaaallsOnRandom();
+      displaybestPath();
+      //attachBall();
+    }
+    
     
     public void addForcesToEvader(Agent p){
         Vector3f sum = new Vector3f(0,0,0);
@@ -1003,6 +1029,104 @@ public class Main extends SimpleApplication {
             
             
         }
+    }
+    
+    
+    public void attachBaaaallsOnRandom(){
+       
+         
+         
+         
+        for(int i=0;i<NUM_POS_RAYS;i++){
+            for(int j=i+1;j<NUM_POS_RAYS;j++){
+
+                if(edges[i][j]){
+                    Line l = new Line(randomPosition[i],randomPosition[j]);
+                    Geometry line = new Geometry("Fck", l);
+                    line.setMaterial(blue);
+                    rootNode.attachChild(line);
+                }
+                    
+            }
+        }
+         
+         
+       
+     }
+    
+    public void attachBall(){
+        int target = 9566;
+        
+        Sphere s = new Sphere(5,5,2f);
+         Geometry mainS = new Geometry("Main", s);
+         mainS.setLocalTranslation(randomPosition[target]);
+         mainS.setMaterial(blue);
+         rootNode.attachChild(mainS);
+         
+         
+         for(int i=0;i<NUM_POS_RAYS;i++){
+            if(edges[target][i]){
+              Geometry n = new Geometry("n", s);
+              n.setMaterial(red);
+              n.setLocalTranslation(randomPosition[i]);
+
+              rootNode.attachChild(n);
+            }
+
+         }
+        
+    }
+    
+    
+    public void displaybestPath(){
+        float bestVis1 = 999999;
+        int index1 = -1;
+        float bestVis2 = 99999;
+        int index2 = -1;
+        
+        for(int i=0;i<NUM_POS_RAYS;i++){
+            if(visibilityRatio[i]<bestVis1){
+                bestVis1 = visibilityRatio[i];
+                index1 = i;
+            }
+        }
+        
+        for(int i=0;i<NUM_POS_RAYS;i++){
+            
+            if(i==index1 || randomPosition[index1].subtract(randomPosition[i]).length()<40)
+                continue;
+            
+            if(visibilityRatio[i]<bestVis2){
+                bestVis2 = visibilityRatio[i];
+                index2 = i;
+            }
+        }
+        
+        AStarAlgorithm algo = new AStarAlgorithm(index1,index2,randomPosition,visibilityRatio, edges); 
+        ArrayList<StarNode> list1 = algo.pathFinding();
+        ArrayList<StarNode> list = algo.closedSet;        
+        Sphere s = new Sphere(5,5,0.5f);
+        Sphere big = new Sphere(5,5,7f);
+        
+        for(StarNode node: list1){
+                
+                     
+                 Geometry n = new Geometry("n", s);
+                if(node.getIndex() == index1 || node.getIndex() == index2)
+                    n.setMaterial(blue);
+                else
+                    n.setMaterial(red);
+
+                 n.setLocalTranslation(node.getPosition());
+
+                 rootNode.attachChild(n);
+                 
+            
+              
+         }
+        
+        
+        
     }
     
     
