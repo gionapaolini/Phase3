@@ -44,6 +44,22 @@ public class AStarAlgorithm {
         this.totalPath = new ArrayList<StarNode>();
         
     }
+    public Vector3f[] getVectorsPath(){
+        ArrayList<StarNode> list = pathFinding();
+        Vector3f[] path = new Vector3f[list.size()];
+        for(int i=0;i<path.length;i++){
+            path[i] = list.get(i).getPosition();
+        }
+        return path;
+    }
+    public Vector3f[] getInverseVectorsPath(){
+        ArrayList<StarNode> list = pathFinding();
+        Vector3f[] path = new Vector3f[list.size()];
+        for(int i=0;i<path.length;i++){
+            path[i] = list.get(path.length-1-i).getPosition();
+        }
+        return path;
+    }
     
     public ArrayList<StarNode> pathFinding(){
         while(openSet.size()!=0){
@@ -90,8 +106,8 @@ public class AStarAlgorithm {
     //add heuristic here? height/distance?
     public void heuristicEstimate(StarNode x){
        
-        float ratio = ratios[x.getIndex()]*50;
-        float height = x.getPosition().length()*2;
+        float ratio = ratios[x.getIndex()]*70;
+        float height = x.getPosition().length()*3;
         float distance = x.getPosition().subtract(goal.getPosition()).length();
         
         x.setH(ratio+height+distance);
