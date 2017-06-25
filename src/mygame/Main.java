@@ -39,6 +39,7 @@ public class Main extends SimpleApplication {
 
     ArrayList<Agent> pursuers;
     ArrayList<Agent> evaders;
+    ArrayList<Vector3f[]> paths;
     Thread timeIncreaser;
     Planet planet;
     Sphere sphere;
@@ -625,8 +626,7 @@ public class Main extends SimpleApplication {
         Vector3f rand;
         int count = 0;
         
-        
-        double time = System.currentTimeMillis();
+
                 
         for(int i=0; i < NUM_VIS_RAYS; i++) {
             rand = new Vector3f((float)Math.random()-0.5f,(float)Math.random()-0.5f,(float)Math.random()-0.5f);
@@ -638,7 +638,7 @@ public class Main extends SimpleApplication {
                 count++;
         }
         
-        System.out.println(System.currentTimeMillis()-time);
+  
         
         return count/(float)NUM_VIS_RAYS;
     }
@@ -707,7 +707,9 @@ public class Main extends SimpleApplication {
             }
         }
       
-      displaybestPath();
+     // displaybestPath();
+      generatePathsList(40,40,true);
+      
     }
     
     
@@ -846,6 +848,7 @@ public class Main extends SimpleApplication {
     }
     
     
+    
     public void displaybestPath(){
         float bestVis1 = 999999;
         int index1 = -1;
@@ -888,6 +891,74 @@ public class Main extends SimpleApplication {
                  n.setLocalTranslation(node.getPosition());
 
                  rootNode.attachChild(n);
+                 
+            
+              
+         }
+        
+        
+        
+    }
+    
+    public void generatePathsList(int n_spots,int minRange, boolean forEvaders){
+        
+        ArrayList<Vector3f[]>[] paths = (ArrayList<Vector3f[]>[]) new ArrayList[n_spots];
+        
+        //generate best n_spots;
+        Vector3f[] bestSpots = new Vector3f[n_spots]; 
+        float[] bestValues = new float[n_spots];
+        int[] bestIndices = new int[n_spots];
+        for(int i=0;i<n_spots;i++){
+            bestValues[i] = 100;
+            for(int j=0;j<NUM_POS_RAYS;j++){
+           
+                if(i>0 && visibilityRatio[j]<=bestValues[i-1])
+                    continue;
+                
+                if(visibilityRatio[j]<bestValues[i]){
+                    bestValues[i] = visibilityRatio[j];
+                    bestSpots[i] = randomPosition[j];
+                    bestIndices[i] = j;
+                }
+            }
+            
+        }
+        
+        //create path among spots
+        
+        for(int i=0;i<n_spots;i++){
+            if(paths[i]==null)
+                paths[i] = new ArrayList();
+            
+            for(int j=i+1;j<n_spots;j++){
+                float distance = bestSpots[i].subtract(bestSpots[j]).length();
+                if(distance>=minRange){
+                    AStarAlgorithm algo = new AStarAlgorithm(bestIndices[i],bestIndices[j],randomPosition,visibilityRatio, edges); 
+                    paths[i].add(algo.getVectorsPath());
+                    if(paths[j]==null)
+                        paths[j] = new ArrayList();
+                    paths[j].add(algo.getInverseVectorsPath());
+                    
+                }
+                
+            }            
+        }        
+        Sphere s = new Sphere(5,5,0.5f);
+        for(Vector3f[] path: paths[20]){
+                
+            for(int i=0;i<path.length;i++){
+                Geometry n = new Geometry("n", s);
+                if(i == 0 || i == path.length-1)
+                    n.setMaterial(blue);
+                else
+                    n.setMaterial(red);
+
+                 n.setLocalTranslation(path[i]);
+
+                 rootNode.attachChild(n);
+                
+            }   
+                
                  
             
               

@@ -33,7 +33,7 @@ public class Agent {
     protected boolean canMove;
     protected ArrayList<Agent> enemyList;
     Vector3f wanderTarget;
-    Vertex currentVertex;
+   
     Geometry body;
     Vector3f[] pyramidSight;
     
@@ -48,7 +48,7 @@ public class Agent {
         canMove = true;
         this.enemyList = enemyList;
     }
-    public void move(float ftp, boolean isPlanet, Planet planet){
+    public void move(float ftp, Planet planet){
        
         if(!canMove)
             return;
@@ -60,79 +60,12 @@ public class Agent {
         maxVel +=difference*2;
         maxVel =  Math.max(maxVel, 1);
 
-        //setMaxVelocity(maxVel);
-            
-        if(typeAlgorithm == 0)
-            applyForce(wanderForce());
-        else if(typeAlgorithm==1){
-            if(type==0){
-                if(currentVertex.getPosition().subtract(position).length()<5){
-                    Vertex bestVertex = null;
-                    int bestTime = -1;
+        setMaxVelocity(maxVel);
 
-                    ArrayList<Vertex> neighbours = currentVertex.getNeighbours();
-                    for(Vertex v: neighbours){
-                        ArrayList<Vertex> neighboursOfNeighbours = v.getNeighbours();
-                        for(Vertex v1: neighboursOfNeighbours){
-                            if(v1.getTime()>bestTime){
-                                bestTime = v1.getTime();
-                                bestVertex = v1;
-                            }
-                        }
-
-                    }
-                    currentVertex = bestVertex;
-                    currentVertex.resetTime();
-                }
-            }else{
-                if(currentVertex.getPosition().subtract(position).length()<5){
-                    Vertex bestVertex = null;
-                    int bestTime = 10000;
-
-                    ArrayList<Vertex> neighbours = currentVertex.getNeighbours();
-                    for(Vertex v: neighbours){
-                        ArrayList<Vertex> neighboursOfNeighbours = v.getNeighbours();
-                        for(Vertex v1: neighboursOfNeighbours){
-                            if(v1.getTime()<bestTime){
-                                bestTime = v1.getTime();
-                                bestVertex = v1;
-                            }
-                        }
-
-                    }
-                    currentVertex = bestVertex;
-                    currentVertex.resetTime();
-                }
-            }
-            applyForce(seekForce(currentVertex.getPosition()));
-           
-
-            
-            
-
-        }else if(typeAlgorithm==2){
-           for(Agent a: enemyList){
-               if(Math.random()>9)
-                   break;
-               System.out.println("Changed");
-               if(type==0)
-                   applyForce(pursueForce(a));
-               else
-                   applyForce(evadeForce(a));
-
-           }
-                
-        }else if(typeAlgorithm==3)
-        
-
-      
-           
         velocity = truncate(velocity);
         position = position.add(velocity.mult(ftp));
         body.setLocalTranslation(position);
-        if(!isPlanet)
-            return;
-        
+       
 
        
         Ray r = new Ray(planet.getPlanet().getLocalTranslation(),position.subtract(planet.getPlanet().getLocalTranslation()).normalize());
@@ -191,14 +124,7 @@ public class Agent {
         this.typeAlgorithm = typeAlgorithm;
     }
 
-    public Vertex getCurrentVertex() {
-        return currentVertex;
-    }
-
-    public void setCurrentVertex(Vertex currentVertex) {
-        this.currentVertex = currentVertex;
-    }
-
+  
     
     public Vector3f wanderForce(){
         Vector3f circleCenter = velocity.clone();
