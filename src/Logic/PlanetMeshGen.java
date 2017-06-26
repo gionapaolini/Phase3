@@ -208,7 +208,8 @@ public class PlanetMeshGen {
         
             // Find a random spot to grow an island
             int sx = rGenerator.nextInt(heightmapWidth);
-            int sy = rGenerator.nextInt(heightmapWidth);
+            //int sy = rGenerator.nextInt(heightmapWidth);
+            int sy = rGenerator.nextInt(heightmapWidth-200)+100;
             int x = sx, y = sy;
             for( int i = 0; i < iterations/2; i++ ) {
                 float d = getData( x, y );

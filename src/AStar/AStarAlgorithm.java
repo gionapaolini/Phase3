@@ -51,6 +51,8 @@ public class AStarAlgorithm {
     }
     public Vector3f[] getVectorsPath(){
         ArrayList<StarNode> list = pathFinding();
+        if(list==null)
+            return null;
         Vector3f[] path = new Vector3f[list.size()];
         for(int i=0;i<path.length;i++){
             path[i] = list.get(i).getPosition();
@@ -117,7 +119,7 @@ public class AStarAlgorithm {
     public void heuristicEstimateEvader(StarNode x){
        
         float ratio = ratios[x.getIndex()]*70;
-        float height = x.getPosition().length()*3;
+        float height = x.getPosition().length()*5;
         float distance = x.getPosition().subtract(goal.getPosition()).length();
         
         x.setH(ratio+height+distance);

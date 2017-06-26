@@ -77,6 +77,8 @@ public class Agent {
         
         Vector3f contactPoint = results.getFarthestCollision().getContactPoint();
         currentNormal = results.getFarthestCollision().getContactNormal();
+        if(position.equals(new Vector3f().NAN))
+            System.out.println("Is NaN before repositioning");
         reposition(contactPoint, currentNormal);
         
         
@@ -269,7 +271,18 @@ public class Agent {
          
         float length = contactPoint.length();
         Vector3f newLocation = contactPoint.normalize().mult(length+1.2f);
+        if(newLocation.equals(new Vector3f().NAN)){
+            System.out.println("Is NaN after repositioning");
+            System.out.println("Contact:"+contactPoint);
+            System.out.println("Normal:"+normalPoint);
+            System.out.println("Returning - No repos");
+
+            
+        }
+        
         setPosition(newLocation);
+        
+         
        
         Vector3f rotation = getProjectionOntoPlane(normalPoint,velocity);
         Quaternion rotationQuat = new Quaternion();

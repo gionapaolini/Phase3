@@ -69,8 +69,8 @@ public class Main extends SimpleApplication {
     
     boolean end =  false;
     //Setting
-    int n_pursuers = 1;
-    int n_evaders = 1;
+    int n_pursuers = 13;
+    int n_evaders = 3;
     
     int pursuerType = 3;
     int evaderType = 4;
@@ -93,9 +93,9 @@ public class Main extends SimpleApplication {
 
     int minPathLength = 40;
     int numBestSpots = 40;
-    int distanceConnection = 6;
+    int distanceConnection = 5;
     
-    boolean showCurrentPath = true;
+    boolean showCurrentPath = false;
     Vector3f[] currentPath;
     
     
@@ -352,6 +352,8 @@ public class Main extends SimpleApplication {
  
         }
         for(Agent wanderer: evaders){
+            if(!wanderer.isCanMove())
+                continue;
            
            switch(evaderType){
                //wandering random
@@ -377,7 +379,8 @@ public class Main extends SimpleApplication {
                       addForcesToEvader(wanderer);
                       break;
                case 4:
-                      addForcesToEvader(wanderer);
+                      hide(wanderer);
+                      //addForcesToEvader(wanderer);
                       
            }
            wanderer.move(ftp, planet);
@@ -617,7 +620,7 @@ public class Main extends SimpleApplication {
             times[i].setLocalTranslation(new Vector3f(0,0,0));
             control[i]=new BillboardControl();
             bb[i] = new Node("node"+i);
-            bb[i].setLocalTranslation(randomPosition[i].normalize().mult(randomPosition[i].length()+2));
+            bb[i].setLocalTranslation(randomPosition[i].normalize().mult(randomPosition[i].length()+1));
             bb[i].addControl(control[i]);
             bb[i].attachChild(times[i]);
             rootNode.attachChild(bb[i]);
@@ -769,9 +772,10 @@ public class Main extends SimpleApplication {
         }
     
     
-      pathsPursuer = generatePathsList(numBestSpots,minPathLength,false);
-      pathsEvader = generatePathsList(numBestSpots,minPathLength,true);
-      
+     // pathsPursuer = generatePathsList(numBestSpots,minPathLength,false);
+    //  pathsEvader = generatePathsList(numBestSpots,minPathLength,true);
+        generateBestSpots(numBestSpots, true);
+        generateBestSpots(numBestSpots, false);
     }
     
     
@@ -841,6 +845,7 @@ public class Main extends SimpleApplication {
         }
        
        chosenPositionPursuer[besti] = true;
+       
        p.applyForce(p.seekForce(randomPosition[besti]));
         
       
@@ -853,7 +858,6 @@ public class Main extends SimpleApplication {
             float dist = a.getPosition().subtract(p[i]).length();
             
             if(dist<=distanceConnection+1f){
-                System.out.println(i);
                 bestIndex = i;
                 break;
             }
@@ -870,17 +874,15 @@ public class Main extends SimpleApplication {
     
     
     public void hide(Agent p){
-                    currentPath = null;
-
-        Vector3f sum = new Vector3f(0,0,0);
-        double time = System.currentTimeMillis();
+        
+        currentPath = null;
         
         float best = 10000;
         int besti = -1;
          
         for(int i=0;i<bestSpotsEvader.length;i++){
                   
-            if(chosenPositionEvaders[bestIndexEvader[i]])
+            if(chosenPositionEvaders[bestIndexEvader[i]] || Math.random()<0.1)
                 continue;
         
             
@@ -906,18 +908,29 @@ public class Main extends SimpleApplication {
         }
         
         chosenPositionEvaders[bestIndexEvader[besti]] = true;
-        if(p.getPosition().subtract(bestSpotsEvader[besti]).length()>minPathLength){
-            Vector3f[] path = getPath(p, besti, true);
-            if(path==null){
-                System.out.println("No path!");
-                return;
-            }
-            currentPath = path;
-            followPath(p, path);
-            System.out.println("Following the path");
-        }else{
+      
+        if(p.getPosition().subtract(bestSpotsEvader[besti]).length()<7){
+             
             p.applyForce(p.seekForce(bestSpotsEvader[besti]));
+            return;
         }
+            
+        AStarAlgorithm algo = new AStarAlgorithm(getClosestRandomPoint(p),bestIndexEvader[besti],randomPosition,visibilityRatio,edges,true); 
+        Vector3f[] path = algo.getVectorsPath();
+        if(path == null){
+            System.out.println(getClosestRandomPoint(p));
+            System.out.println(bestIndexEvader[besti]);
+            System.out.println("Distance: "+randomPosition[getClosestRandomPoint(p)].subtract(randomPosition[bestIndexEvader[besti]]).length());
+           System.out.println("RETURNED!\n");
+           p.applyForce(p.seekForce(bestSpotsEvader[besti]));
+           return;
+
+
+        }
+        currentPath = path;
+
+        followPath(p, path);
+        
     }
     
     public void resetChosenPositionPursuer(){
@@ -937,6 +950,22 @@ public class Main extends SimpleApplication {
         }
     }
     
+    public int getClosestRandomPoint(Agent p){
+        
+        int bestIndex = -1; 
+        float bestDist = 10000000;
+        
+        for(int i=0;i<randomPosition.length;i++){
+            float dist = p.getPosition().subtract(randomPosition[i]).length();
+            if(dist<bestDist){
+                bestDist = dist;
+                bestIndex = i;
+            }
+        }
+        if(bestIndex ==-1)
+            System.out.println(p.getPosition());
+        return bestIndex;
+    }
     
     public void attachBaaaallsOnRandom(){
        
@@ -1055,7 +1084,55 @@ public class Main extends SimpleApplication {
         
         return paths;
     }
+    
+    public void generateBestSpots(int n_spots, boolean forEvaders){
+                //generate best n_spots;
+        Vector3f[] bestSpots = new Vector3f[n_spots]; 
+        float[] bestValues = new float[n_spots];
+        int[] bestIndices = new int[n_spots];
+        for(int i=0;i<n_spots;i++){
+            if(forEvaders){
+                bestValues[i] = 100;
+                for(int j=0;j<NUM_POS_RAYS;j++){
 
+                    if(i>0 && visibilityRatio[j]<=bestValues[i-1])
+                        continue;
+
+                    if(visibilityRatio[j]<bestValues[i]){
+                        bestValues[i] = visibilityRatio[j];
+                        bestSpots[i] = randomPosition[j];
+                        bestIndices[i] = j;
+                    }
+                }
+            }else{
+                bestValues[i] = 0;
+                for(int j=0;j<NUM_POS_RAYS;j++){
+
+                    if(i>0 && visibilityRatio[j]>=bestValues[i-1])
+                        continue;
+
+                    if(visibilityRatio[j]>bestValues[i]){
+                        bestValues[i] = visibilityRatio[j];
+                        bestSpots[i] = randomPosition[j];
+                        bestIndices[i] = j;
+                    }
+                }
+            }
+            
+        }
+        
+        if(forEvaders){
+            bestSpotsEvader = bestSpots;
+            bestRatioEvader = bestValues;
+            bestIndexEvader = bestIndices;
+        }else{
+            bestSpotsPursuer = bestSpots;
+            bestRatioPursuer = bestValues;
+            bestIndexPursuer = bestIndices;
+        }
+    }
+    
+    
     public void displayPath(Vector3f[] path){
         pathNode.detachAllChildren();
         Sphere s = new Sphere(5,5,0.5f);
@@ -1074,6 +1151,8 @@ public class Main extends SimpleApplication {
                 
         }   
     }
+
+   
     
     private Vector3f[] getPath(Agent p, int index, boolean isEvader) {
         Vector3f[] spots;
@@ -1101,6 +1180,13 @@ public class Main extends SimpleApplication {
             if(path[path.length-1].equals(spots[index]))
                 return path;
         }
+        System.out.println("mmH, best dist? "+bestDist);
+        System.out.println("Start: "+spots[bestI]);
+        System.out.println("End: "+spots[index]);
+        System.out.println("Distance: "+spots[bestI].subtract(spots[index]).length());
+        System.out.println("Distance from start: "+p.getPosition().subtract(spots[bestI]).length());
+        System.out.println("Distance from end: "+p.getPosition().subtract(spots[index]).length());
+        
         return null;
         
         
