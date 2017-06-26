@@ -27,8 +27,9 @@ public class AStarAlgorithm {
     boolean[][] edges;
     StarNode goal;
     StarNode start;
+    boolean evaders;
     
-    public AStarAlgorithm(int startIndex, int  goalIndex, Vector3f[] points, float[] ratios, boolean[][] edges){
+    public AStarAlgorithm(int startIndex, int  goalIndex, Vector3f[] points, float[] ratios, boolean[][] edges, boolean evaders){
         openSet = new ArrayList<>();
         totalPath = new ArrayList<>();
         closedSet = new ArrayList<>();
@@ -40,8 +41,12 @@ public class AStarAlgorithm {
         openSet.add(start);
 
         start.setG(0);
-        heuristicEstimate(start);
+        if(evaders)
+            heuristicEstimateEvader(start);
+        else
+            heuristicEstimatePursuer(start);
         this.totalPath = new ArrayList<StarNode>();
+        this.evaders = evaders;
         
     }
     public Vector3f[] getVectorsPath(){
@@ -82,7 +87,10 @@ public class AStarAlgorithm {
                     float distance = neighbor.getPosition().subtract(current.getPosition()).length();
                     tGscore = current.getG() + distance;
                     if(!openSet.contains(neighbor)){
-                        heuristicEstimate(neighbor);
+                        if(evaders)
+                            heuristicEstimateEvader(neighbor);
+                        else
+                            heuristicEstimatePursuer(neighbor);
                         openSet.add(neighbor);
                         neighbor.setCameFrom(current);
                         neighbor.setG(tGscore);
@@ -91,9 +99,11 @@ public class AStarAlgorithm {
                     else{
                         if(tGscore <= neighbor.getG()){
                             neighbor.setCameFrom(current);
-                            neighbor.setG(tGscore);             
-                            heuristicEstimate(neighbor);
-                           
+                            neighbor.setG(tGscore);        
+                            if(evaders)
+                                heuristicEstimateEvader(neighbor);
+                            else
+                                heuristicEstimatePursuer(neighbor);
                         }
                     }
                 }
@@ -104,9 +114,20 @@ public class AStarAlgorithm {
     }
     
     //add heuristic here? height/distance?
-    public void heuristicEstimate(StarNode x){
+    public void heuristicEstimateEvader(StarNode x){
        
         float ratio = ratios[x.getIndex()]*70;
+        float height = x.getPosition().length()*3;
+        float distance = x.getPosition().subtract(goal.getPosition()).length();
+        
+        x.setH(ratio+height+distance);
+        x.setF();
+        
+       
+    }
+    public void heuristicEstimatePursuer(StarNode x){
+       
+        float ratio = (1-ratios[x.getIndex()])*70;
         float height = x.getPosition().length()*3;
         float distance = x.getPosition().subtract(goal.getPosition()).length();
         

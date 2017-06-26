@@ -11,6 +11,8 @@ import com.jme3.collision.CollisionResults;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.light.DirectionalLight;
+import com.jme3.light.Light;
+import com.jme3.light.LightList;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Ray;
@@ -39,13 +41,21 @@ public class Main extends SimpleApplication {
 
     ArrayList<Agent> pursuers;
     ArrayList<Agent> evaders;
-    ArrayList<Vector3f[]> paths;
+    ArrayList<Vector3f[]>[] pathsEvader;
+    ArrayList<Vector3f[]>[] pathsPursuer;
+    Vector3f[] bestSpotsEvader;
+    Vector3f[] bestSpotsPursuer;
+    float[] bestRatioEvader;
+    float[] bestRatioPursuer;
+    int[] bestIndexEvader;
+    int[] bestIndexPursuer;
+    
     Thread timeIncreaser;
     Planet planet;
     Sphere sphere;
-    Material red, blue, green, white, matWireframe, mat;
+    Material red, blue, green, white,yellow, matWireframe, mat;
     Settings settings;
-    Node fovs;
+    Node fovs,pathNode;
     Node[] bb;
     BitmapText[] times;
     
@@ -54,15 +64,16 @@ public class Main extends SimpleApplication {
     int[] timePosition;
     boolean[] chosenPositionPursuer;
     boolean[] chosenPositionEvaders;
-    
+    double startTime;
+    boolean isEnd;
     
     boolean end =  false;
     //Setting
-    int n_pursuers = 3;
-    int n_evaders = 3;
+    int n_pursuers = 1;
+    int n_evaders = 1;
     
     int pursuerType = 3;
-    int evaderType = 3;
+    int evaderType = 4;
   
     boolean planetVisible = true;
    
@@ -80,7 +91,12 @@ public class Main extends SimpleApplication {
     private boolean useHighestVisibilityPoints = true;
     private boolean[][] edges;
 
+    int minPathLength = 40;
+    int numBestSpots = 40;
+    int distanceConnection = 6;
     
+    boolean showCurrentPath = true;
+    Vector3f[] currentPath;
     
     
     public static void main(String[] args) {
@@ -91,6 +107,18 @@ public class Main extends SimpleApplication {
         app.setSettings(settings);
             
         app.start();
+    }
+    
+    public void increaseExperiment(){
+        n_pursuers++;
+        if(n_pursuers>10){
+            n_pursuers = 1;
+            n_evaders++;
+            if(n_evaders>10)
+                System.out.println("FINISH");
+        }
+            
+        
     }
     
     @Override
@@ -146,8 +174,16 @@ public class Main extends SimpleApplication {
             rootNode.attachChild(fovs);
         }
         
-        
+        if(showCurrentPath){
+            pathNode = new Node();
+            rootNode.attachChild(pathNode);
+        }
 
+        startTime = System.currentTimeMillis();
+        System.out.println("\n Num pursuers: "+n_pursuers);
+        System.out.println(" Num evaders: "+n_evaders);
+  
+        
         
     }
     
@@ -164,8 +200,26 @@ public class Main extends SimpleApplication {
       
        if(FOVvisible)
            displayFOV();
+       
+       if(showCurrentPath && currentPath!=null)
+            displayPath(currentPath);
+       
+       if(isEnd || System.currentTimeMillis()-startTime>180000){
+           System.out.println("Simulation ended: "+(System.currentTimeMillis()-startTime)+"ms");
+           rootNode.detachAllChildren();
+           LightList list = rootNode.getWorldLightList();
+           for(Light light: list){
+               rootNode.removeLight(light);
+           }
+           
+           increaseExperiment();
+           simpleInitApp();
+           
+       }
     }
 
+    
+    
     private void initializeAppSetting() {
         setDisplayFps(false);
         setDisplayStatView(false);
@@ -190,6 +244,8 @@ public class Main extends SimpleApplication {
         green.setColor("Color", ColorRGBA.Green);
         white = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         white.setColor("Color", ColorRGBA.White);
+        yellow = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+        yellow.setColor("Color", ColorRGBA.Yellow);
         
         matWireframe = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         matWireframe.setColor("Color", ColorRGBA.Green);
@@ -319,6 +375,10 @@ public class Main extends SimpleApplication {
                //stays on lowest visibility areas
                case 3:
                       addForcesToEvader(wanderer);
+                      break;
+               case 4:
+                      addForcesToEvader(wanderer);
+                      
            }
            wanderer.move(ftp, planet);
            
@@ -502,7 +562,7 @@ public class Main extends SimpleApplication {
 
     private void checkDeaths() {
         
-        
+       isEnd = true;
         for(Agent pursuer: pursuers){
             Vector3f[] pyramid = buildPyramid(pursuer.getPosition(),pursuer.getVelocity(),pursuer.getCurrentNormal());
             pursuer.setPyramidSight(pyramid);
@@ -511,7 +571,7 @@ public class Main extends SimpleApplication {
                 
                 if(!evader.isCanMove())
                     continue;
-                
+                isEnd = false;
                 Ray r = new Ray(pursuer.getPosition(),evader.getPosition().subtract(pursuer.getPosition()).normalize());
                 CollisionResults res = new CollisionResults();
                 planet.getPlanet().collideWith(r, res);
@@ -521,7 +581,6 @@ public class Main extends SimpleApplication {
                     if(isInSight(pyramid, pursuer.getPosition(),evader.getPosition())){
                         evader.getBody().setMaterial(blue);
                         evader.setCanMove(false);
-                        
                         if(showLines){
                             Line l = new Line(pursuer.getPosition(),evader.getPosition());
                             Geometry line = new Geometry("Fck", l);
@@ -533,6 +592,8 @@ public class Main extends SimpleApplication {
                     
             }
         }
+        
+        
         
         
     }
@@ -697,7 +758,7 @@ public class Main extends SimpleApplication {
         for(int i=0;i<NUM_POS_RAYS;i++){
             for(int j=i+1;j<NUM_POS_RAYS;j++){
 
-                if(randomPosition[i].subtract(randomPosition[j]).length()<6){
+                if(randomPosition[i].subtract(randomPosition[j]).length()<distanceConnection){
                                        
                     edges[i][j]=true;
                     edges[j][i]=true;
@@ -706,9 +767,10 @@ public class Main extends SimpleApplication {
                     
             }
         }
-      
-     // displaybestPath();
-      generatePathsList(40,40,true);
+    
+    
+      pathsPursuer = generatePathsList(numBestSpots,minPathLength,false);
+      pathsEvader = generatePathsList(numBestSpots,minPathLength,true);
       
     }
     
@@ -784,6 +846,80 @@ public class Main extends SimpleApplication {
       
     }
     
+    
+    public void followPath(Agent a, Vector3f[] p){
+        int bestIndex=0;
+        for(int i=p.length-1; i>0;i--){
+            float dist = a.getPosition().subtract(p[i]).length();
+            
+            if(dist<=distanceConnection+1f){
+                System.out.println(i);
+                bestIndex = i;
+                break;
+            }
+           
+        }
+        
+        a.applyForce(a.seekForce(p[bestIndex]));
+      
+        
+        
+        
+    
+    }
+    
+    
+    public void hide(Agent p){
+                    currentPath = null;
+
+        Vector3f sum = new Vector3f(0,0,0);
+        double time = System.currentTimeMillis();
+        
+        float best = 10000;
+        int besti = -1;
+         
+        for(int i=0;i<bestSpotsEvader.length;i++){
+                  
+            if(chosenPositionEvaders[bestIndexEvader[i]])
+                continue;
+        
+            
+            float closestValue = 100000;
+            for(Agent agent:pursuers){
+               
+                float current = agent.getPosition().subtract(bestSpotsEvader[i]).length();
+                if(current<closestValue){
+                    closestValue = current;
+                }
+            }
+            
+            float totalVal = visibilityRatio[i] - (closestValue/50);
+                      
+            
+            
+            if( totalVal < best) {
+                besti = i;
+                best = totalVal;
+            }
+                
+               
+        }
+        
+        chosenPositionEvaders[bestIndexEvader[besti]] = true;
+        if(p.getPosition().subtract(bestSpotsEvader[besti]).length()>minPathLength){
+            Vector3f[] path = getPath(p, besti, true);
+            if(path==null){
+                System.out.println("No path!");
+                return;
+            }
+            currentPath = path;
+            followPath(p, path);
+            System.out.println("Following the path");
+        }else{
+            p.applyForce(p.seekForce(bestSpotsEvader[besti]));
+        }
+    }
+    
     public void resetChosenPositionPursuer(){
          for(int i=0;i<chosenPositionPursuer.length;i++){
                    
@@ -846,61 +982,8 @@ public class Main extends SimpleApplication {
          }
         
     }
-    
-    
-    
-    public void displaybestPath(){
-        float bestVis1 = 999999;
-        int index1 = -1;
-        float bestVis2 = 99999;
-        int index2 = -1;
-        
-        for(int i=0;i<NUM_POS_RAYS;i++){
-            if(visibilityRatio[i]<bestVis1){
-                bestVis1 = visibilityRatio[i];
-                index1 = i;
-            }
-        }
-        
-        for(int i=0;i<NUM_POS_RAYS;i++){
-            
-            if(i==index1 || randomPosition[index1].subtract(randomPosition[i]).length()<40)
-                continue;
-            
-            if(visibilityRatio[i]<bestVis2){
-                bestVis2 = visibilityRatio[i];
-                index2 = i;
-            }
-        }
-        
-        AStarAlgorithm algo = new AStarAlgorithm(index1,index2,randomPosition,visibilityRatio, edges); 
-        ArrayList<StarNode> list1 = algo.pathFinding();
-        ArrayList<StarNode> list = algo.closedSet;        
-        Sphere s = new Sphere(5,5,0.5f);
-        Sphere big = new Sphere(5,5,7f);
-        
-        for(StarNode node: list1){
-                
-                     
-                 Geometry n = new Geometry("n", s);
-                if(node.getIndex() == index1 || node.getIndex() == index2)
-                    n.setMaterial(blue);
-                else
-                    n.setMaterial(red);
 
-                 n.setLocalTranslation(node.getPosition());
-
-                 rootNode.attachChild(n);
-                 
-            
-              
-         }
-        
-        
-        
-    }
-    
-    public void generatePathsList(int n_spots,int minRange, boolean forEvaders){
+    public ArrayList<Vector3f[]>[] generatePathsList(int n_spots,int minRange, boolean forEvaders){
         
         ArrayList<Vector3f[]>[] paths = (ArrayList<Vector3f[]>[]) new ArrayList[n_spots];
         
@@ -909,21 +992,45 @@ public class Main extends SimpleApplication {
         float[] bestValues = new float[n_spots];
         int[] bestIndices = new int[n_spots];
         for(int i=0;i<n_spots;i++){
-            bestValues[i] = 100;
-            for(int j=0;j<NUM_POS_RAYS;j++){
-           
-                if(i>0 && visibilityRatio[j]<=bestValues[i-1])
-                    continue;
-                
-                if(visibilityRatio[j]<bestValues[i]){
-                    bestValues[i] = visibilityRatio[j];
-                    bestSpots[i] = randomPosition[j];
-                    bestIndices[i] = j;
+            if(forEvaders){
+                bestValues[i] = 100;
+                for(int j=0;j<NUM_POS_RAYS;j++){
+
+                    if(i>0 && visibilityRatio[j]<=bestValues[i-1])
+                        continue;
+
+                    if(visibilityRatio[j]<bestValues[i]){
+                        bestValues[i] = visibilityRatio[j];
+                        bestSpots[i] = randomPosition[j];
+                        bestIndices[i] = j;
+                    }
+                }
+            }else{
+                bestValues[i] = 0;
+                for(int j=0;j<NUM_POS_RAYS;j++){
+
+                    if(i>0 && visibilityRatio[j]>=bestValues[i-1])
+                        continue;
+
+                    if(visibilityRatio[j]>bestValues[i]){
+                        bestValues[i] = visibilityRatio[j];
+                        bestSpots[i] = randomPosition[j];
+                        bestIndices[i] = j;
+                    }
                 }
             }
             
         }
         
+        if(forEvaders){
+            bestSpotsEvader = bestSpots;
+            bestRatioEvader = bestValues;
+            bestIndexEvader = bestIndices;
+        }else{
+            bestSpotsPursuer = bestSpots;
+            bestRatioPursuer = bestValues;
+            bestIndexPursuer = bestIndices;
+        }
         //create path among spots
         
         for(int i=0;i<n_spots;i++){
@@ -933,7 +1040,7 @@ public class Main extends SimpleApplication {
             for(int j=i+1;j<n_spots;j++){
                 float distance = bestSpots[i].subtract(bestSpots[j]).length();
                 if(distance>=minRange){
-                    AStarAlgorithm algo = new AStarAlgorithm(bestIndices[i],bestIndices[j],randomPosition,visibilityRatio, edges); 
+                    AStarAlgorithm algo = new AStarAlgorithm(bestIndices[i],bestIndices[j],randomPosition,visibilityRatio, edges,forEvaders); 
                     paths[i].add(algo.getVectorsPath());
                     if(paths[j]==null)
                         paths[j] = new ArrayList();
@@ -943,27 +1050,58 @@ public class Main extends SimpleApplication {
                 
             }            
         }        
+        
+        
+        
+        return paths;
+    }
+
+    public void displayPath(Vector3f[] path){
+        pathNode.detachAllChildren();
         Sphere s = new Sphere(5,5,0.5f);
-        for(Vector3f[] path: paths[20]){
-                
-            for(int i=0;i<path.length;i++){
+        for(int i=0;i<path.length;i++){
                 Geometry n = new Geometry("n", s);
-                if(i == 0 || i == path.length-1)
+                if(i == 0 )
                     n.setMaterial(blue);
+                else if(i == path.length-1)
+                    n.setMaterial(yellow);
                 else
                     n.setMaterial(red);
+                n.setLocalTranslation(path[i]);
 
-                 n.setLocalTranslation(path[i]);
-
-                 rootNode.attachChild(n);
-                
-            }   
-                
+                pathNode.attachChild(n);
                  
+                
+        }   
+    }
+    
+    private Vector3f[] getPath(Agent p, int index, boolean isEvader) {
+        Vector3f[] spots;
+        ArrayList<Vector3f[]>[] paths;
+        if(isEvader){
+            spots = bestSpotsEvader;
+            paths = pathsEvader;
+        }else{
+            spots = bestSpotsPursuer;
+            paths = pathsPursuer;
+        }
             
-              
-         }
+        float bestDist = 1000;
+        int bestI = 0;
+        for(int i=0;i<spots.length;i++){
+            float distance = p.getPosition().subtract(spots[i]).length();
+            if(distance<bestDist){
+                bestDist = distance;
+                bestI = i;
+            }
+        }
         
+        ArrayList<Vector3f[]> pathList = paths[bestI];
+        for(Vector3f[] path: pathList){
+            if(path[path.length-1].equals(spots[index]))
+                return path;
+        }
+        return null;
         
         
     }
