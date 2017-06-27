@@ -69,8 +69,8 @@ public class Main extends SimpleApplication {
     
     boolean end =  false;
     //Setting
-    int n_pursuers = 13;
-    int n_evaders = 3;
+    int n_pursuers = 1;
+    int n_evaders = 1;
     
     int pursuerType = 3;
     int evaderType = 4;
@@ -111,10 +111,10 @@ public class Main extends SimpleApplication {
     
     public void increaseExperiment(){
         n_pursuers++;
-        if(n_pursuers>10){
+        if(n_pursuers>5){
             n_pursuers = 1;
             n_evaders++;
-            if(n_evaders>10)
+            if(n_evaders>5)
                 System.out.println("FINISH");
         }
             
@@ -187,6 +187,34 @@ public class Main extends SimpleApplication {
         
     }
     
+    
+    
+     public void reinitializeApp(){
+          if(useAgents){
+            initializeAgents();
+            chosenPositionPursuer = new boolean[NUM_POS_RAYS];
+            chosenPositionEvaders = new boolean[NUM_POS_RAYS];
+        }
+        
+       
+      
+       
+        
+        if(FOVvisible){
+            fovs = new Node();
+            rootNode.attachChild(fovs);
+        }
+        
+        if(showCurrentPath){
+            pathNode = new Node();
+            rootNode.attachChild(pathNode);
+        }
+
+        startTime = System.currentTimeMillis();
+        System.out.println("\n Num pursuers: "+n_pursuers);
+        System.out.println(" Num evaders: "+n_evaders);
+        
+    }
     @Override
     public void simpleUpdate(float ftp){
        if(useAgents)
@@ -207,13 +235,10 @@ public class Main extends SimpleApplication {
        if(isEnd || System.currentTimeMillis()-startTime>180000){
            System.out.println("Simulation ended: "+(System.currentTimeMillis()-startTime)+"ms");
            rootNode.detachAllChildren();
-           LightList list = rootNode.getWorldLightList();
-           for(Light light: list){
-               rootNode.removeLight(light);
-           }
            
            increaseExperiment();
-           simpleInitApp();
+           reinitializeApp();
+           rootNode.attachChild(planet.getPlanet());
            
        }
     }
