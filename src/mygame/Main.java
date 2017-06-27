@@ -78,10 +78,10 @@ public class Main extends SimpleApplication {
     boolean planetVisible = true;
    
     boolean FOVvisible = false;
-    boolean catchingActive = true;
+    boolean catchingActive = false;
     boolean showLines = false;
   
-    boolean useAgents = true;
+    boolean useAgents = false;
     boolean displayTime = true;
     boolean initializeRandomLocations = true;
     boolean readFile = true;
@@ -90,7 +90,7 @@ public class Main extends SimpleApplication {
     private int NUM_POS_RAYS = 10000;
     private boolean useHighestVisibilityPoints = true;
     private boolean[][] edges;
-
+    Material[] colors;
     int minPathLength = 40;
     int numBestSpots = 40;
     int distanceConnection = 5;
@@ -182,8 +182,12 @@ public class Main extends SimpleApplication {
         startTime = System.currentTimeMillis();
         System.out.println("\n Num pursuers: "+n_pursuers);
         System.out.println(" Num evaders: "+n_evaders);
-  
-        
+   pathNode = new Node();
+            rootNode.attachChild(pathNode);
+        ArrayList<Vector3f[]> paths = generatePaths();
+         for(Vector3f[] path: paths){
+             displayPath(path);
+         }       
         
     }
     
@@ -230,9 +234,9 @@ public class Main extends SimpleApplication {
            displayFOV();
        
        if(showCurrentPath && currentPath!=null)
-            displayPath(currentPath);
+            //displayPath(currentPath);
        
-       if(isEnd || System.currentTimeMillis()-startTime>180000){
+       if(isEnd || System.currentTimeMillis()-startTime>60000){
            System.out.println("Simulation ended: "+(System.currentTimeMillis()-startTime)+"ms");
            rootNode.detachAllChildren();
            
@@ -259,7 +263,23 @@ public class Main extends SimpleApplication {
         settings = new Settings();
         
         sphere = new Sphere(5,5,1);
-    
+        
+        colors = new Material[100];
+        for(int i=0;i<colors.length;i++){
+            colors[i] = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+        }
+        
+        colors[0].setColor("Color", ColorRGBA.Red);
+        colors[1].setColor("Color", ColorRGBA.Blue);
+        colors[2].setColor("Color", ColorRGBA.Yellow);
+        colors[3].setColor("Color", ColorRGBA.Brown);
+        colors[4].setColor("Color", ColorRGBA.Black);
+        colors[5].setColor("Color", ColorRGBA.Orange);
+        colors[6].setColor("Color", ColorRGBA.Green);
+        colors[7].setColor("Color", ColorRGBA.Cyan);
+        colors[8].setColor("Color", ColorRGBA.Magenta);
+        colors[9].setColor("Color", ColorRGBA.Pink);
+        
         
         red = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         red.setColor("Color", ColorRGBA.Red);
@@ -992,6 +1012,31 @@ public class Main extends SimpleApplication {
         return bestIndex;
     }
     
+    public ArrayList<Vector3f[]> generatePaths(){
+        int i=0;
+        for(i=0;i<randomPosition.length;i++){
+            if(randomPosition[544].subtract(randomPosition[i]).length()<40){
+                break;
+            }
+        }
+        
+       ArrayList<Vector3f[]> paths = new ArrayList<>();
+        float w1 = 30; // ratio
+        float w2 = 0.1f; // height
+        for( int k=0;k<10;k++){
+            w2+=0.5f;
+            
+              
+                AStarAlgorithm algo = new AStarAlgorithm(i,554,randomPosition,visibilityRatio, edges,true);
+                //algo.setW1(w1);
+                algo.setW2(w2);
+                paths.add(algo.getVectorsPath());
+                System.out.println("generated");
+            
+        }
+        return paths;
+    }
+    
     public void attachBaaaallsOnRandom(){
        
          
@@ -1159,8 +1204,9 @@ public class Main extends SimpleApplication {
     
     
     public void displayPath(Vector3f[] path){
-        pathNode.detachAllChildren();
+       // pathNode.detachAllChildren();
         Sphere s = new Sphere(5,5,0.5f);
+        int index = (int)(Math.random()*colors.length);
         for(int i=0;i<path.length;i++){
                 Geometry n = new Geometry("n", s);
                 if(i == 0 )
@@ -1168,8 +1214,9 @@ public class Main extends SimpleApplication {
                 else if(i == path.length-1)
                     n.setMaterial(yellow);
                 else
-                    n.setMaterial(red);
-                n.setLocalTranslation(path[i]);
+                    n.setMaterial(colors[index]);
+                float length = path[i].length();
+                n.setLocalTranslation(path[i].normalize().mult(length + i));
 
                 pathNode.attachChild(n);
                  

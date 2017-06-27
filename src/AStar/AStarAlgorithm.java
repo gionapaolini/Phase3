@@ -28,6 +28,8 @@ public class AStarAlgorithm {
     StarNode goal;
     StarNode start;
     boolean evaders;
+    private float w1;
+    private float w2;
     
     public AStarAlgorithm(int startIndex, int  goalIndex, Vector3f[] points, float[] ratios, boolean[][] edges, boolean evaders){
         openSet = new ArrayList<>();
@@ -48,7 +50,19 @@ public class AStarAlgorithm {
         this.totalPath = new ArrayList<StarNode>();
         this.evaders = evaders;
         
+         
+        this.w1 = 70;
+        this.w2 = 5;
+        
+   }
+    
+   public void setW1(float w){
+        w1 = w;
     }
+    public void setW2(float w){
+        w2 = w;
+    }
+     
     public Vector3f[] getVectorsPath(){
         ArrayList<StarNode> list = pathFinding();
         if(list==null)
@@ -118,8 +132,8 @@ public class AStarAlgorithm {
     //add heuristic here? height/distance?
     public void heuristicEstimateEvader(StarNode x){
        
-        float ratio = ratios[x.getIndex()]*70;
-        float height = x.getPosition().length()*5;
+        float ratio = ratios[x.getIndex()]*this.w1;
+        float height = x.getPosition().length()*this.w2;
         float distance = x.getPosition().subtract(goal.getPosition()).length();
         
         x.setH(ratio+height+distance);
