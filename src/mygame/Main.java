@@ -49,13 +49,13 @@ public class Main extends SimpleApplication {
     float[] bestRatioPursuer;
     int[] bestIndexEvader;
     int[] bestIndexPursuer;
-    
+    boolean[] dangerousLocations;
     Thread timeIncreaser;
     Planet planet;
     Sphere sphere;
     Material red, blue, green, white,yellow, matWireframe, mat;
     Settings settings;
-    Node fovs,pathNode;
+    Node fovs,pathNode, dangerNode;
     Node[] bb;
     BitmapText[] times;
     
@@ -69,8 +69,8 @@ public class Main extends SimpleApplication {
     
     boolean end =  false;
     //Setting
-    int n_pursuers = 1;
-    int n_evaders = 1;
+    int n_pursuers = 2;
+    int n_evaders = 2;
     
     int pursuerType = 3;
     int evaderType = 4;
@@ -78,10 +78,12 @@ public class Main extends SimpleApplication {
     boolean planetVisible = true;
    
     boolean FOVvisible = false;
-    boolean catchingActive = false;
-    boolean showLines = false;
-  
-    boolean useAgents = false;
+    boolean catchingActive = true;
+    boolean showLines = true;
+    boolean checkDangerousLocations = false;
+    boolean displayDangerousLocations =true;
+    boolean showsRandomPoints = false;
+    boolean useAgents = true;
     boolean displayTime = true;
     boolean initializeRandomLocations = true;
     boolean readFile = true;
@@ -97,7 +99,6 @@ public class Main extends SimpleApplication {
     
     boolean showCurrentPath = false;
     Vector3f[] currentPath;
-    
     
     public static void main(String[] args) {
         Main app = new Main();
@@ -178,17 +179,28 @@ public class Main extends SimpleApplication {
             pathNode = new Node();
             rootNode.attachChild(pathNode);
         }
-
+        
+        if(checkDangerousLocations){
+            dangerousLocations = new boolean[NUM_POS_RAYS];
+            dangerNode =  new Node();
+            rootNode.attachChild(dangerNode);
+        }
+ 
+        if(showsRandomPoints){
+            
+            showsRandomPoints();
+        }
         startTime = System.currentTimeMillis();
         System.out.println("\n Num pursuers: "+n_pursuers);
         System.out.println(" Num evaders: "+n_evaders);
-   pathNode = new Node();
+        /*
+        pathNode = new Node();
             rootNode.attachChild(pathNode);
         ArrayList<Vector3f[]> paths = generatePaths();
          for(Vector3f[] path: paths){
              displayPath(path);
          }       
-        
+        */
     }
     
     
@@ -201,8 +213,10 @@ public class Main extends SimpleApplication {
         }
         
        
-      
-       
+        if(checkDangerousLocations){
+            dangerousLocations = new boolean[NUM_POS_RAYS];
+        }
+     
         
         if(FOVvisible){
             fovs = new Node();
@@ -245,6 +259,12 @@ public class Main extends SimpleApplication {
            rootNode.attachChild(planet.getPlanet());
            
        }
+       
+      if(checkDangerousLocations){
+          checkDangerousLocation();
+          if(displayDangerousLocations)
+              displayDangerousLocations();
+      }
     }
 
     
@@ -309,7 +329,7 @@ public class Main extends SimpleApplication {
             Agent agent = new Agent(0,pursuerType, evaders);
             
              agent.setBody(new Geometry("Sphere", sphere));
-             agent.getBody().setMaterial(red);
+             agent.getBody().setMaterial(blue);
             
 
             float r1 = (float) (Math.random()*100);
@@ -627,7 +647,7 @@ public class Main extends SimpleApplication {
                     
                     
                     if(isInSight(pyramid, pursuer.getPosition(),evader.getPosition())){
-                        evader.getBody().setMaterial(blue);
+                        evader.getBody().setMaterial(red);
                         evader.setCanMove(false);
                         if(showLines){
                             Line l = new Line(pursuer.getPosition(),evader.getPosition());
@@ -1262,6 +1282,75 @@ public class Main extends SimpleApplication {
         return null;
         
         
+    }
+    
+    public void checkDangerousLocation(){
+        
+        
+        for(Agent pursuer: pursuers){
+            Vector3f[] pyramid = buildPyramid(pursuer.getPosition(),pursuer.getVelocity(),pursuer.getCurrentNormal());
+            pursuer.setPyramidSight(pyramid);
+            
+            for(int j=0;j<NUM_POS_RAYS;j++){
+                
+                dangerousLocations[j] = false;
+                Ray r = new Ray(pursuer.getPosition(),randomPosition[j].subtract(pursuer.getPosition()).normalize());
+                CollisionResults res = new CollisionResults();
+                planet.getPlanet().collideWith(r, res);
+                if(res.size()<=0){
+                    
+                    
+                    if(isInSight(pyramid, pursuer.getPosition(),randomPosition[j])){
+                        dangerousLocations[j] = true;
+                    }
+                }
+                    
+            }
+        }
+        
+     
+    }
+    
+    public void displayDangerousLocations(){
+        
+         dangerNode.detachAllChildren();
+        Sphere s = new Sphere(5,5,0.5f);
+        int index = (int)(Math.random()*colors.length);
+        int count =0;
+        for(int i=0;i<NUM_POS_RAYS;i++){
+                if(!dangerousLocations[i])
+                    continue;
+                
+                Geometry n = new Geometry("n", s);
+
+                
+                n.setMaterial(red);
+             
+                n.setLocalTranslation(randomPosition[i]);
+
+                dangerNode.attachChild(n);
+                count++;
+                 
+                
+        }   
+     
+    }
+    
+    public void showsRandomPoints(){
+                Sphere s = new Sphere(5,5,0.5f);
+           for(int i=0;i<NUM_POS_RAYS;i++){
+
+                Geometry n = new Geometry("n", s);
+
+                
+                n.setMaterial(red);
+             
+                n.setLocalTranslation(randomPosition[i]);
+
+                rootNode.attachChild(n);
+                 
+                
+        }  
     }
     
     
